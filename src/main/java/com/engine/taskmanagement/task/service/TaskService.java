@@ -11,6 +11,7 @@ public interface TaskService {
     TaskResponse createTask(CreateTaskRequest request);
 
     List<TaskResponse> getAllTasks();
+    List<TaskResponse> getDeletedTasks();
 
     TaskResponse getTaskById(Long id);
 

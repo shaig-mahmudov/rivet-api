@@ -1,45 +1,35 @@
 package com.engine.taskmanagement.task.entity;
+
+import com.engine.taskmanagement.common.entity.BaseEntity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tasks")
 @Getter
 @Setter
-public class Task {
+@NoArgsConstructor
+public class Task extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(nullable = false)
     private String title;
+
     private String description;
 
     @Enumerated(EnumType.STRING)
-    private TaskPriority priority;
-    @Enumerated(EnumType.STRING)
-    private TaskStatus status;
+    @Column(nullable = false)
+    private TaskPriority priority = TaskPriority.MEDIUM;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskStatus status = TaskStatus.TODO;
+
     private LocalDate dueDate;
 
-    public Task(){}
-
-    public Task(Long id, String title, String description, TaskPriority priority, TaskStatus status, LocalDateTime createdAt, LocalDateTime updatedAt, LocalDate dueDate) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.priority = priority;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.dueDate = dueDate;
-    }
 }

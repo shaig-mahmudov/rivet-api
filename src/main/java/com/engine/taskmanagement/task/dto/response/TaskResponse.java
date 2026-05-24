@@ -18,5 +18,6 @@ public class TaskResponse {
     private TaskStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
     private LocalDate dueDate;
 }

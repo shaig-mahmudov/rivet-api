@@ -33,4 +33,21 @@ public class TaskController {
         List<TaskResponse> response = taskService.getAllTasks();
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/deleted")
+    public ResponseEntity<List<TaskResponse>> getDeletedTasks() {
+        List<TaskResponse> response = taskService.getDeletedTasks();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TaskResponse> getTaskById(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.getTaskById(id));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
+        taskService.deleteTask(id);
+        return ResponseEntity.noContent().build();
+    }
 }

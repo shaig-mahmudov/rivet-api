@@ -19,7 +19,7 @@ public class TaskMapper {
         task.setDescription(request.getDescription());
         task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
-        task.setStatus(TaskStatus.TODO);
+        task.setStatus(request.getStatus());
         task.setCreatedAt(LocalDateTime.now());
         task.setUpdatedAt(LocalDateTime.now());
 
@@ -49,5 +49,7 @@ public class TaskMapper {
         task.setDueDate(request.getDueDate());
         task.setUpdatedAt(LocalDateTime.now());
     }
+
+
 
 }

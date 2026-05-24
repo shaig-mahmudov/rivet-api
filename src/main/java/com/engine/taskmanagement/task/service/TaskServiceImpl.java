@@ -31,7 +31,15 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public List<TaskResponse> getAllTasks() {
-        return taskRepository.findAll()
+        return taskRepository.findAllByDeletedAtIsNull()
+                .stream()
+                .map(taskMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<TaskResponse> getDeletedTasks() {
+        return taskRepository.findAllByDeletedAtIsNotNull()
                 .stream()
                 .map(taskMapper::toResponse)
                 .toList();
@@ -39,7 +47,10 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public TaskResponse getTaskById(Long id) {
-        return null;
+        Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new RuntimeException("TaskNotFound"));
+
+        return taskMapper.toResponse(task);
     }
 
     @Override
@@ -49,6 +60,12 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public void deleteTask(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("TaskNotFound"));
+
+        task.markAsDeleted();
+        taskRepository.save(task);
+
 
     }
 }
