@@ -1,8 +1,10 @@
 package com.engine.taskmanagement.task.entity;
 
 import com.engine.taskmanagement.common.entity.BaseEntity;
+import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,5 +33,13 @@ public class Task extends BaseEntity {
     private TaskStatus status = TaskStatus.TODO;
 
     private LocalDate dueDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assignee_id")
+    private User assignee;
 
 }
