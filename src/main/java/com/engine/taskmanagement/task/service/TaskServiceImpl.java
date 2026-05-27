@@ -1,5 +1,6 @@
 package com.engine.taskmanagement.task.service;
 
+import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
@@ -48,7 +49,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse getTaskById(Long id) {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new RuntimeException("TaskNotFound"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task Not Found"));
 
         return taskMapper.toResponse(task);
     }
@@ -61,7 +62,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public void deleteTask(Long id) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("TaskNotFound"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task Not Found"));
 
         task.markAsDeleted();
         taskRepository.save(task);
