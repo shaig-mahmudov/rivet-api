@@ -24,7 +24,6 @@ public class User extends BaseEntity {
     private String email;
 
     private String password;
-    private String confirmPassword;
 
     @Enumerated(EnumType.STRING)
     private Role role;

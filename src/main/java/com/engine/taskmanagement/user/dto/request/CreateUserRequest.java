@@ -23,6 +23,4 @@ public class CreateUserRequest {
 
     @Enumerated(EnumType.STRING)
     private Role role;
-
-    private List<Project> projects = new ArrayList<>();
 }
