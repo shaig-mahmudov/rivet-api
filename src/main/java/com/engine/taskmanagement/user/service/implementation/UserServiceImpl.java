@@ -7,9 +7,11 @@ import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.mapper.UserMapper;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import com.engine.taskmanagement.user.service.abstraction.UserService;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Service
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -37,7 +39,7 @@ public class UserServiceImpl implements UserService {
         return userRepository.findAllByDeletedAtIsNotNull()
                 .stream()
                 .map(userMapper::toResponse)
-                .toList();
+                .toList()   ;
     }
 
     @Override
