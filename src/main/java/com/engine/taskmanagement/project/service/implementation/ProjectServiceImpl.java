@@ -9,6 +9,8 @@ import com.engine.taskmanagement.project.mapper.ProjectMapper;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -45,4 +47,15 @@ public class ProjectServiceImpl implements ProjectService {
         Project updatedProject = projectRepository.save(currentProject);
         return projectMapper.toResponse(updatedProject);
     }
+
+    @Override
+    @Transactional
+    public void deleteProject(Long id) {
+        Project project = projectRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+
+        project.markAsDeleted();
+    }
+
+
 }

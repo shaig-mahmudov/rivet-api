@@ -83,6 +83,5 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task Not Found with id: " + id));
 
         task.markAsDeleted();
-        taskRepository.save(task);
     }
 }
