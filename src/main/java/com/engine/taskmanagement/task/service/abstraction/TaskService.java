@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.task.service.abstraction;
 
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 
@@ -16,6 +17,7 @@ public interface TaskService {
     TaskResponse getTaskById(Long id);
 
     TaskResponse updateTask(Long id, UpdateTaskRequest request);
+    TaskResponse partialUpdateTask(Long id, PartialUpdateTaskRequest request);
 
     void deleteTask(Long id);
 }

@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.task.mapper;
 
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
@@ -50,7 +51,7 @@ public class TaskMapper {
         task.setUpdatedAt(LocalDateTime.now());
     }
 
-    public void partialUpdateEntity(Task task, UpdateTaskRequest request) {
+    public void partialUpdateEntity(Task task, PartialUpdateTaskRequest request) {
         if (request.getTitle() != null) {
             task.setTitle(request.getTitle());
         }
