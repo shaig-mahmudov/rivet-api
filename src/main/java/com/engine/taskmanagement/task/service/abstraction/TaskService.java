@@ -1,4 +1,4 @@
-package com.engine.taskmanagement.task.service;
+package com.engine.taskmanagement.task.service.abstraction;
 
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;

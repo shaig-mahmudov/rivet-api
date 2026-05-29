@@ -1,4 +1,4 @@
-package com.engine.taskmanagement.user.service;
+package com.engine.taskmanagement.user.service.abstraction;
 
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.dto.request.UpdateUserRequest;

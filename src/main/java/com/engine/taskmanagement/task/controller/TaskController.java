@@ -2,7 +2,7 @@ package com.engine.taskmanagement.task.controller;
 
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
-import com.engine.taskmanagement.task.service.TaskService;
+import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

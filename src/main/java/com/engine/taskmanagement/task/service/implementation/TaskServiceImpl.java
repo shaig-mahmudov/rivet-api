@@ -1,4 +1,4 @@
-package com.engine.taskmanagement.task.service;
+package com.engine.taskmanagement.task.service.implementation;
 
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
@@ -7,6 +7,7 @@ import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
+import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
