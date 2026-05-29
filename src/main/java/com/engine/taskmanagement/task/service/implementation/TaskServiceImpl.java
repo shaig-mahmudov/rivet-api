@@ -1,5 +1,6 @@
 package com.engine.taskmanagement.task.service.implementation;
 
+import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
@@ -93,4 +94,19 @@ public class TaskServiceImpl implements TaskService {
 
         taskRepository.delete(task);
     }
+
+    @Transactional
+    @Override
+    public TaskResponse restoreTask(Long id) {
+        Task task = taskRepository.findByIdAndDeletedAtIsNotNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Deleted Task Not Found with id: " + id));
+
+        if (task.getProject().getDeletedAt() != null) {
+            throw new BadRequestException("Cannot restore task because its project is deleted");
+        }
+
+        task.restore();
+        return taskMapper.toResponse(task);
+    }
+
 }

@@ -21,4 +21,5 @@ public interface TaskService {
 
     void deleteTask(Long id);
     void hardDeleteTask(Long id);
+    TaskResponse restoreTask(Long id);
 }
