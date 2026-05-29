@@ -84,4 +84,13 @@ public class TaskServiceImpl implements TaskService {
 
         task.markAsDeleted();
     }
+
+    @Transactional
+    @Override
+    public void hardDeleteTask(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task Not Found with id: " + id));
+
+        taskRepository.delete(task);
+    }
 }

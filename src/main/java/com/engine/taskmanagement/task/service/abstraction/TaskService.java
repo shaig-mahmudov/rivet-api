@@ -20,4 +20,5 @@ public interface TaskService {
     TaskResponse partialUpdateTask(Long id, PartialUpdateTaskRequest request);
 
     void deleteTask(Long id);
+    void hardDeleteTask(Long id);
 }
