@@ -22,23 +22,25 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody CreateProjectRequest request) {
+    public ResponseEntity<ProjectResponse> createProject(
+            @Valid @RequestBody CreateProjectRequest request
+    ) {
         ProjectResponse response = projectService.createProject(request);
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     public ResponseEntity<List<ProjectResponse>> getAllProjects() {
         List<ProjectResponse> response = projectService.getAllProjects();
-
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/{id}")
-    public ResponseEntity<ProjectResponse> updateProject(@RequestBody Long id,UpdateProjectRequest request) {
+    @PutMapping("/{id}")
+    public ResponseEntity<ProjectResponse> updateProject(
+            @PathVariable Long id,
+            @RequestBody UpdateProjectRequest request
+    ) {
         ProjectResponse response = projectService.updateProject(id, request);
-
         return ResponseEntity.ok(response);
     }
 }

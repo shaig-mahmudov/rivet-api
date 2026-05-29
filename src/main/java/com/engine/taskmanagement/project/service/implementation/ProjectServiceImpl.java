@@ -42,7 +42,7 @@ public class ProjectServiceImpl implements ProjectService {
         Project currentProject = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));;
         projectMapper.updateEntity(currentProject, request);
-        Project savedProject = projectRepository.save(currentProject);
-        return projectMapper.toResponse(savedProject);
+        Project updatedProject = projectRepository.save(currentProject);
+        return projectMapper.toResponse(updatedProject);
     }
 }

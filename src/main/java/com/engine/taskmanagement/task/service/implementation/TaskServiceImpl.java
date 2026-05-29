@@ -57,7 +57,11 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public TaskResponse updateTask(Long id, UpdateTaskRequest request) {
-        return null;
+        Task currentTask = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        taskMapper.updateEntity(currentTask, request);
+        Task updatedTask = taskRepository.save(currentTask);
+        return taskMapper.toResponse(updatedTask);
     }
 
     @Override
@@ -67,7 +71,5 @@ public class TaskServiceImpl implements TaskService {
 
         task.markAsDeleted();
         taskRepository.save(task);
-
-
     }
 }

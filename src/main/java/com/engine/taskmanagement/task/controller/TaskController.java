@@ -1,6 +1,9 @@
 package com.engine.taskmanagement.task.controller;
 
+import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
+import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import jakarta.validation.Valid;
@@ -22,9 +25,10 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<TaskResponse> createTask(@Valid @RequestBody CreateTaskRequest request) {
+    public ResponseEntity<TaskResponse> createTask(
+            @Valid @RequestBody CreateTaskRequest request
+    ) {
         TaskResponse response = taskService.createTask(request);
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -49,5 +53,14 @@ public class TaskController {
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TaskResponse> updateTask(
+            @PathVariable Long id,
+            @RequestBody UpdateTaskRequest request
+    ) {
+        TaskResponse response = taskService.updateTask(id, request);
+        return ResponseEntity.ok(response);
     }
 }
