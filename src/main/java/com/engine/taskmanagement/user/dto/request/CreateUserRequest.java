@@ -5,10 +5,14 @@ import com.engine.taskmanagement.project.entity.Project;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 public class CreateUserRequest {
     private String username;
 
