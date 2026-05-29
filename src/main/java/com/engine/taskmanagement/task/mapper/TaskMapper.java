@@ -49,4 +49,28 @@ public class TaskMapper {
         task.setDueDate(request.getDueDate());
         task.setUpdatedAt(LocalDateTime.now());
     }
+
+    public void partialUpdateEntity(Task task, UpdateTaskRequest request) {
+        if (request.getTitle() != null) {
+            task.setTitle(request.getTitle());
+        }
+
+        if (request.getDescription() != null) {
+            task.setDescription(request.getDescription());
+        }
+
+        if (request.getPriority() != null) {
+            task.setPriority(request.getPriority());
+        }
+
+        if (request.getStatus() != null) {
+            task.setStatus(request.getStatus());
+        }
+
+        if (request.getDueDate() != null) {
+            task.setDueDate(request.getDueDate());
+        }
+
+        task.setUpdatedAt(LocalDateTime.now());
+    }
 }
