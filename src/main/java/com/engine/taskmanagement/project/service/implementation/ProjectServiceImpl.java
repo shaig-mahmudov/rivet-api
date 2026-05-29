@@ -57,5 +57,12 @@ public class ProjectServiceImpl implements ProjectService {
         project.markAsDeleted();
     }
 
+    @Override
+    @Transactional
+    public void hardDeleteProject(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
+        projectRepository.delete(project);
+    }
 }
