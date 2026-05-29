@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.project.controller;
 
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
+import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
 import jakarta.validation.Valid;
@@ -30,6 +31,13 @@ public class ProjectController {
     @GetMapping
     public ResponseEntity<List<ProjectResponse>> getAllProjects() {
         List<ProjectResponse> response = projectService.getAllProjects();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ProjectResponse> updateProject(@RequestBody Long id,UpdateProjectRequest request) {
+        ProjectResponse response = projectService.updateProject(id, request);
 
         return ResponseEntity.ok(response);
     }
