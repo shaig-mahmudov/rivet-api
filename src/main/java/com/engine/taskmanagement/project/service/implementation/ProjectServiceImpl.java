@@ -1,6 +1,8 @@
 package com.engine.taskmanagement.project.service.implementation;
 
+import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
+import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.mapper.ProjectMapper;
@@ -24,7 +26,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponse createProject(CreateProjectRequest request) {
         Project project = projectMapper.toEntity(request);
         Project savedProject = projectRepository.save(project);
-        return projectMapper.toResponse(project);
+        return projectMapper.toResponse(savedProject);
     }
 
     @Override
@@ -33,5 +35,14 @@ public class ProjectServiceImpl implements ProjectService {
                 .stream()
                 .map(projectMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    public ProjectResponse updateProject(Long id, UpdateProjectRequest request) {
+        Project currentProject = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));;
+        projectMapper.updateEntity(currentProject, request);
+        Project savedProject = projectRepository.save(currentProject);
+        return projectMapper.toResponse(savedProject);
     }
 }

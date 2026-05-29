@@ -1,8 +1,10 @@
 package com.engine.taskmanagement.project.mapper;
 
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
+import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.entity.Project;
+import com.engine.taskmanagement.user.entity.User;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -27,11 +29,13 @@ public class ProjectMapper {
         response.setId(project.getId());
         response.setName(project.getName());
         response.setDescription(project.getDescription());
-        response.setOwner(project.getOwner());
-        response.setTasks(project.getTasks());
-        response.setCreatedAt(project.getCreatedAt());
-        response.setUpdatedAt(project.getUpdatedAt());
 
         return response;
+    }
+
+    public void updateEntity(Project project, UpdateProjectRequest request) {
+        project.setName(request.getName());
+        project.setDescription(request.getDescription());
+        project.setUpdatedAt(LocalDateTime.now());
     }
 }
