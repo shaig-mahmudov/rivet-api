@@ -101,7 +101,7 @@ public class TaskServiceImpl implements TaskService {
         Task task = taskRepository.findByIdAndDeletedAtIsNotNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deleted Task Not Found with id: " + id));
 
-        if (task.getProject() == null || task.getProject().getDeletedAt() != null) {
+        if (task.getProject() != null && task.getProject().getDeletedAt() != null) {
             throw new BadRequestException("Cannot restore task because its project is deleted");
         }
 

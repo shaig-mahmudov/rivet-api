@@ -63,7 +63,7 @@ public class TaskController {
     @PutMapping("/{id}")
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long id,
-            @RequestBody UpdateTaskRequest request
+            @RequestBody @Valid UpdateTaskRequest request
     ) {
         TaskResponse response = taskService.updateTask(id, request);
         return ResponseEntity.ok(response);
@@ -77,7 +77,10 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<TaskResponse> partialUpdateTask(@PathVariable Long id, @RequestBody PartialUpdateTaskRequest request) {
+    public ResponseEntity<TaskResponse> partialUpdateTask(
+            @PathVariable Long id,
+            @RequestBody PartialUpdateTaskRequest request) {
+
         TaskResponse response = taskService.partialUpdateTask(id, request);
         return ResponseEntity.ok(response);
     }
