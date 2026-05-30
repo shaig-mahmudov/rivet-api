@@ -1,11 +1,10 @@
 package com.engine.taskmanagement.task.controller;
 
-import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -84,4 +83,13 @@ public class TaskController {
         TaskResponse response = taskService.partialUpdateTask(id, request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{id}/status")
+    public ResponseEntity<TaskResponse> changeStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody ChangeTaskStatusRequest request) {
+        TaskResponse response = taskService.changeTaskStatus(id, request);
+        return ResponseEntity.ok(response);
+    }
+    
 }
