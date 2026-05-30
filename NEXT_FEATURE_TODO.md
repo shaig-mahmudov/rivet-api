@@ -4,7 +4,7 @@ Generated: 2026-05-30
 
 ## Current Snapshot
 
-The backend is now close to a task/project CRUD MVP.
+The backend is close to a task/project CRUD MVP.
 
 Already present:
 
@@ -12,126 +12,104 @@ Already present:
 - `.env` support through `springboot4-dotenv`.
 - Dev MySQL profile and prod PostgreSQL profile.
 - Base entity with auditing, soft delete, and restore support.
-- Task create, list, get by id, full update, partial update, soft delete, hard delete, deleted list, and restore endpoints.
-- Task status and priority change endpoints.
+- Task create, list, get by id, full update, partial update, soft delete, hard delete, deleted list, restore, status change, and priority change endpoints.
 - Project create, list, update, soft delete, hard delete, and restore endpoints.
-- Project list now returns active projects.
-- Task create now preserves default priority/status when request values are missing.
-- Simple `ProjectResponse` that avoids returning full `User` and `Task` entities.
+- Project list returns active projects.
+- Task create preserves default status/priority when request values are missing.
+- Simple `ProjectResponse` with `id`, `name`, and `description`.
 - `UserResponse` does not expose password.
 - User entity, repository, mapper, service interface, and service implementation skeleton.
-- Custom exceptions and a global exception handler.
+- Global exception handler with Spring's real `MethodArgumentNotValidException` imported.
 
-Important note: this TODO is based on static code review. Build/test was not run in this pass.
+Important note: Java works when `JAVA_HOME` is set, but Maven wrapper still fails before compilation.
 
-## MVP Goal
+## Phase 1: Environment And Build
 
-First prototype target:
+### 1. Fix Maven Wrapper Execution
 
-- Create, list, update, delete, and restore projects.
-- Create, list, view, update, partially update, delete, and restore tasks.
-- Return clean enough JSON responses for manual testing in Postman or Swagger.
+- [ ] Fix the `mvnw.cmd` failure:
 
-Authentication and user ownership can wait unless your first demo specifically needs login.
-
-## Phase 1: Must Check Before More Coding
-
-### 1. Compile And Run The App
+```text
+Cannot index into a null array.
+Cannot start maven from wrapper
+```
 
 - [ ] Run `./mvnw test`.
 - [ ] Run `./mvnw spring-boot:run`.
-- [ ] Confirm the Maven wrapper works.
 - [ ] Confirm MySQL is running.
 - [ ] Confirm database `task_management` exists.
 - [ ] Confirm `.env` values are loaded.
 - [ ] Confirm Swagger/OpenAPI page works if enabled.
 
-Why first: the code has moved a lot. Before adding features, prove the current app starts.
+### 2. Make Java Configuration Persistent
 
-## Phase 2: Remaining MVP Bugs
+Current working JDK path:
 
-### 2. Fix Task Status/Priority Change Queries
-
-Current `changeTaskStatus` and `changeTaskPriority` use:
-
-```java
-findByIdAndDeletedAtIsNotNull(id)
+```powershell
+C:\Users\Guven Servis\.jdks\ms-21.0.11-1
 ```
 
-That searches deleted tasks. For normal status and priority changes, use active tasks instead:
+Temporary command:
 
-```java
-findByIdAndDeletedAtIsNull(id)
+```powershell
+$env:JAVA_HOME = "C:\Users\Guven Servis\.jdks\ms-21.0.11-1"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
 ```
 
 TODO:
 
-- [ ] Fix `changeTaskStatus` to load active tasks.
-- [ ] Fix `changeTaskPriority` to load active tasks.
-- [ ] Add manual test for changing status on an active task.
-- [ ] Add manual test for changing priority on an active task.
+- [ ] Set `JAVA_HOME` permanently in Windows environment variables.
+- [ ] Add `%JAVA_HOME%\bin` to permanent `Path`.
+- [ ] In IntelliJ, set Project SDK to Java 21.
+- [ ] In IntelliJ, set Maven runner/importer JDK to the same Java 21 SDK.
+- [ ] Restart IntelliJ and verify `java -version` and Maven still work.
 
-Why this matters: these endpoints currently likely fail for normal active tasks.
+## Phase 2: Remaining MVP Code Cleanup
 
-### 3. Finish Validation Coverage
+### 3. Fix Validation Error Response
 
-- [x] Add `@Valid` to `TaskController.updateTask`.
-- [x] Add `@Valid` to `ProjectController.updateProject`.
-- [ ] Add validation annotations to `PartialUpdateTaskRequest` where useful.
-- [ ] Add `@Valid` to `TaskController.partialUpdateTask` if validation annotations are added there.
+Good news: the handler now imports Spring's real:
 
-Why this matters: create and full update endpoints validate input, but partial update currently has no field constraints.
+```java
+org.springframework.web.bind.MethodArgumentNotValidException
+```
 
-### 4. Fix Validation Exception Handling
+Remaining TODO:
 
-Current handler catches your custom `common.exception.MethodArgumentNotValidException`, not Spring's real validation exception.
+- [ ] Return `HttpStatus.BAD_REQUEST`, not `HttpStatus.CONFLICT`.
+- [ ] Set response status field to `400`.
+- [ ] Set response error field to `Bad Request`.
+- [ ] Extract field-level validation messages into `ErrorResponse.details`.
+- [ ] Use a clear message like `Validation failed`.
 
-- [ ] Replace or supplement it with `org.springframework.web.bind.MethodArgumentNotValidException`.
-- [ ] Return HTTP 400 for validation errors.
-- [ ] Fill `ErrorResponse.details` with field-level validation messages.
-- [ ] Fix the response body mismatch where validation body says `CONFLICT` but HTTP status is `BAD_REQUEST`.
+### 4. Decide About Hard Delete In MVP
 
-### 5. Clean Minor Endpoint Details
+Current public endpoints:
 
-- [x] Add missing slash in `@PostMapping("{id}/restore")` in `TaskController`; use `@PostMapping("/{id}/restore")`.
-- [x] Make `ProjectController.restoreProject` public instead of private.
-- [ ] Decide whether hard delete endpoints should stay in MVP or be removed until admin/auth exists.
+- `DELETE /api/tasks/{id}/hard`
+- `DELETE /api/projects/{id}/hard`
 
-These are small, but they make the API cleaner and less surprising.
+TODO:
 
-## Phase 3: Response And Mapper Cleanup
+- [ ] Keep them if this is only a local prototype.
+- [ ] Remove or protect them before a shared demo.
+- [ ] Later, make hard delete admin-only after auth exists.
 
-### 6. Map Project Response Extra Fields Or Remove Them
+### 5. Clean ProjectResponse Comments
 
-`ProjectResponse` has these fields:
+`ProjectResponse` is effectively simplified, but old fields are commented out.
 
-- `ownerId`
-- `ownerUsername`
-- `taskCount`
+- [ ] Remove commented fields from `ProjectResponse`.
+- [ ] Add them back later only when owner/task count are actually mapped.
 
-But `ProjectMapper.toResponse` currently maps only:
+### 6. Optional Response Cleanup
 
-- `id`
-- `name`
-- `description`
+- [ ] Map `deletedAt` in `TaskResponse` if deleted-task list should show deletion time.
+- [ ] Add `deletedAt` to `ProjectResponse` only if you add a deleted-project list endpoint.
 
-Choose one:
+## Phase 3: Manual MVP Test Checklist
 
-- [ ] Map `ownerId`, `ownerUsername`, and `taskCount`.
-- [ ] Or remove those fields until project ownership/tasks are exposed in the response.
-
-For MVP, either choice is fine. Avoid unused response fields if you want the API to look tidy.
-
-### 7. Add Deleted Timestamp To Responses If Needed
-
-- [ ] Map `deletedAt` in `TaskResponse` if deleted-task list should show when deletion happened.
-- [ ] Add `deletedAt` to `ProjectResponse` only if you create a deleted-project list endpoint.
-
-Not required for first demo, but useful for soft delete testing.
-
-## Phase 4: Manual MVP Test Checklist
-
-Use Postman, Swagger, or curl.
+Use Postman, Swagger, or curl after Maven/app startup works.
 
 ### Project Flow
 
@@ -163,14 +141,14 @@ Use Postman, Swagger, or curl.
 - [ ] Missing project id returns 404.
 - [ ] Creating task without title returns 400.
 - [ ] Creating project without name returns 400.
-- [ ] Updating task with invalid data returns 400 after validation fix.
-- [ ] Updating project with invalid data returns 400 after validation fix.
+- [ ] Updating task with invalid data returns 400.
+- [ ] Updating project with invalid data returns 400.
 
-## Phase 5: User Module Only If Needed
+## Phase 4: User Module Only If Needed
 
 For a task/project MVP, users can wait.
 
-If you decide users are required:
+If users are required:
 
 - [ ] Add `UserController` endpoints.
 - [ ] Return `userMapper.toResponse(savedUser)` after create.
@@ -182,9 +160,7 @@ If you decide users are required:
 - [ ] Check password and confirm password match.
 - [ ] Hash passwords before any login/register feature.
 
-## Phase 6: After MVP Works
-
-Do these later.
+## Phase 5: After MVP Works
 
 ### Task And Project Features
 
@@ -194,7 +170,7 @@ Do these later.
 - [ ] Add overdue task filter.
 - [ ] Add pagination and sorting.
 - [ ] Add `projectId` to task create request.
-- [ ] Add project validation when assigning a task to project.
+- [ ] Validate project exists when assigning a task to project.
 - [ ] Return project summary or `projectId` in `TaskResponse`.
 
 ### Auth And Ownership
@@ -217,6 +193,7 @@ Do these later.
 - [ ] Document MySQL dev setup.
 - [ ] Document PostgreSQL prod setup.
 - [ ] Add endpoint examples.
+- [ ] Document permanent `JAVA_HOME` setup.
 
 ## Completed Since Earlier TODOs
 
@@ -236,6 +213,8 @@ Do these later.
 - [x] Fix standalone task restore logic.
 - [x] Implement task status change endpoint.
 - [x] Implement task priority change endpoint.
+- [x] Fix task status change to load active tasks.
+- [x] Fix task priority change to load active tasks.
 - [x] Preserve task default priority/status during create.
 - [x] Remove duplicate task description `@Size`.
 - [x] Fix project list to return active projects.
@@ -247,17 +226,20 @@ Do these later.
 - [x] Add `@Valid` to project update endpoint.
 - [x] Clean task restore mapping slash.
 - [x] Make project restore controller method public.
+- [x] Delete custom `MethodArgumentNotValidException`.
+- [x] Import Spring's real `MethodArgumentNotValidException`.
 
 ## Current Highest Priority Order
 
-1. Compile/run the app.
-2. Fix task status/priority change queries to use active tasks.
-3. Fix validation exception handling.
-4. Decide whether hard delete endpoints stay in MVP.
-5. Map or remove unused `ProjectResponse` fields.
-6. Manually test project flow.
-7. Manually test task flow.
-8. Postpone users/auth unless the MVP demo needs them.
+1. Fix Maven wrapper execution.
+2. Make `JAVA_HOME` persistent in Windows/IntelliJ.
+3. Run tests or start the app.
+4. Fix validation handler to return 400 with field details.
+5. Remove commented fields from `ProjectResponse`.
+6. Decide whether hard delete endpoints stay in MVP.
+7. Manually test project flow.
+8. Manually test task flow.
+9. Postpone users/auth unless the MVP demo needs them.
 
 ## What Not To Do Yet
 
