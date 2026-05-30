@@ -59,7 +59,7 @@ public class TaskServiceImpl implements TaskService {
     @Transactional
     @Override
     public TaskResponse updateTask(Long id, UpdateTaskRequest request) {
-        Task currentTask = taskRepository.findById(id)
+        Task currentTask = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
         taskMapper.updateEntity(currentTask, request);
         Task updatedTask = taskRepository.save(currentTask);
