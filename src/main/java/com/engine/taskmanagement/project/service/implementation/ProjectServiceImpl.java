@@ -70,7 +70,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ProjectResponse restoreProject(Long id) {
         Project project = projectRepository.findByIdAndDeletedAtIsNotNull(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Deleted Task Not Found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Deleted Project Not Found with id: " + id));
 
         project.restore();
         return projectMapper.toResponse(project);
