@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.task.controller;
 
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
@@ -71,7 +72,13 @@ public class TaskController {
     @PostMapping("{id}")
     public ResponseEntity<TaskResponse> restoreTask(@PathVariable Long id) {
         TaskResponse response = taskService.restoreTask(id);
-        return ResponseEntity.status(HttpStatus.OK).body(response);
+        return ResponseEntity.ok(response);
 
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<TaskResponse> partialUpdateTask(@PathVariable Long id, @RequestBody PartialUpdateTaskRequest request) {
+        TaskResponse response = taskService.partialUpdateTask(id, request);
+        return ResponseEntity.ok(response);
     }
 }
