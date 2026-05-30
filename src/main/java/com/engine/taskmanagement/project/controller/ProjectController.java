@@ -50,13 +50,13 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteProject(@PathVariable Long id) {
         projectService.hardDeleteProject(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/restore/{id}")
+    @PostMapping("/{id}/restore")
     private ResponseEntity<ProjectResponse> restoreProject(@PathVariable Long id) {
         ProjectResponse response = projectService.restoreProject(id);
         return ResponseEntity.ok(response);

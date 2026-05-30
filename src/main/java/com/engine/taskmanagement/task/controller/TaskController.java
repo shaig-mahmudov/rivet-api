@@ -54,7 +54,7 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("{id}")
+    @DeleteMapping("/{id}/hard")
     public ResponseEntity<Void> hardDeleteTask(@PathVariable Long id) {
         taskService.hardDeleteTask(id);
         return ResponseEntity.noContent().build();
@@ -69,7 +69,7 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("{id}")
+    @PostMapping("{id}/restore")
     public ResponseEntity<TaskResponse> restoreTask(@PathVariable Long id) {
         TaskResponse response = taskService.restoreTask(id);
         return ResponseEntity.ok(response);
