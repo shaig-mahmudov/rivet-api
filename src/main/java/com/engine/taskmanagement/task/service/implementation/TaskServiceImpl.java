@@ -2,9 +2,7 @@ package com.engine.taskmanagement.task.service.implementation;
 
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
-import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
@@ -109,4 +107,25 @@ public class TaskServiceImpl implements TaskService {
         return taskMapper.toResponse(task);
     }
 
+    @Transactional
+    @Override
+    public TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request) {
+        Task task = taskRepository.findByIdAndDeletedAtIsNotNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        taskMapper.changeTaskStatus(task, request);
+        Task updatedTask = taskRepository.save(task);
+        return taskMapper.toResponse(updatedTask);
+    }
+
+    @Transactional
+    @Override
+    public TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request) {
+        Task task = taskRepository.findByIdAndDeletedAtIsNotNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        taskMapper.changeTaskPriority(task, request);
+        Task updatedTask = taskRepository.save(task);
+        return taskMapper.toResponse(updatedTask);
+    }
 }

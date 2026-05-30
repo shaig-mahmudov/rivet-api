@@ -1,8 +1,6 @@
 package com.engine.taskmanagement.task.service.abstraction;
 
-import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 
 import java.util.List;
@@ -22,4 +20,6 @@ public interface TaskService {
     void deleteTask(Long id);
     void hardDeleteTask(Long id);
     TaskResponse restoreTask(Long id);
+    TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request);
+    TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request);
 }
