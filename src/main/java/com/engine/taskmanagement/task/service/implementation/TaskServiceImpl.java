@@ -110,7 +110,7 @@ public class TaskServiceImpl implements TaskService {
     @Transactional
     @Override
     public TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request) {
-        Task task = taskRepository.findByIdAndDeletedAtIsNotNull(id)
+        Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
         taskMapper.changeTaskStatus(task, request);
@@ -121,7 +121,7 @@ public class TaskServiceImpl implements TaskService {
     @Transactional
     @Override
     public TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request) {
-        Task task = taskRepository.findByIdAndDeletedAtIsNotNull(id)
+        Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
         taskMapper.changeTaskPriority(task, request);
