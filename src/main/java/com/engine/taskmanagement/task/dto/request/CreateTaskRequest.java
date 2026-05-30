@@ -18,7 +18,7 @@ public class CreateTaskRequest {
     @NotBlank(message = "Title is required")
     @Size(max = 100, message = "Title cannot exceed 100 characters")
     private String title;
-    @Size(max = 500, min = 0)
+
     @Size(max = 500, message = "Description cannot exceed 500 characters")
     private String description;
 
