@@ -5,6 +5,7 @@ import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
+import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import org.springframework.stereotype.Component;
 
@@ -18,9 +19,13 @@ public class TaskMapper {
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
-        task.setPriority(request.getPriority());
+        if (request.getPriority() != null) {
+            task.setPriority(request.getPriority());
+        }
+        if (request.getStatus() != null) {
+            task.setStatus(request.getStatus());
+        }
         task.setDueDate(request.getDueDate());
-        task.setStatus(request.getStatus());
         task.setCreatedAt(LocalDateTime.now());
         task.setUpdatedAt(LocalDateTime.now());
 
@@ -45,8 +50,8 @@ public class TaskMapper {
     public void updateEntity(Task task, UpdateTaskRequest request) {
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
-        task.setPriority(request.getPriority());
         task.setStatus(request.getStatus());
+        task.setPriority(request.getPriority());
         task.setDueDate(request.getDueDate());
         task.setUpdatedAt(LocalDateTime.now());
     }
