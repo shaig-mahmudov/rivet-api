@@ -49,4 +49,12 @@ public class ProjectController {
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> hardDeleteProject(@PathVariable Long id) {
+        projectService.hardDeleteProject(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    
 }
