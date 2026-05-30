@@ -103,13 +103,13 @@ public class GlobalExceptionHandler{
             HttpServletRequest request) {
         ErrorResponse response = new ErrorResponse(
                 LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                HttpStatus.CONFLICT.getReasonPhrase(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 ex.getMessage(),
                 request.getRequestURI(),
                 null
         );
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }
