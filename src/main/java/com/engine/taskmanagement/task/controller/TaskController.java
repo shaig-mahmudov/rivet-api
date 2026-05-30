@@ -91,5 +91,14 @@ public class TaskController {
         TaskResponse response = taskService.changeTaskStatus(id, request);
         return ResponseEntity.ok(response);
     }
-    
+
+    @PostMapping("/{id}/priority")
+    public ResponseEntity<TaskResponse> changePriority(
+            @PathVariable Long id,
+            @Valid @RequestBody ChangeTaskPriorityRequest request) {
+        TaskResponse response = taskService.changeTaskPriority(id, request);
+        return ResponseEntity.ok(response);
+
+    }
+
 }
