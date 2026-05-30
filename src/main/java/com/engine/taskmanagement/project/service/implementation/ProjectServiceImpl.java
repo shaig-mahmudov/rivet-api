@@ -33,7 +33,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public List<ProjectResponse> getAllProjects() {
-        return projectRepository.findAllByDeletedAtIsNotNull()
+        return projectRepository.findAllByDeletedAtIsNull()
                 .stream()
                 .map(projectMapper::toResponse)
                 .toList();
