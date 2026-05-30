@@ -1,12 +1,8 @@
 package com.engine.taskmanagement.task.mapper;
 
-import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
-import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
-import com.engine.taskmanagement.task.enums.TaskPriority;
-import com.engine.taskmanagement.task.enums.TaskStatus;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -77,6 +73,16 @@ public class TaskMapper {
             task.setDueDate(request.getDueDate());
         }
 
+        task.setUpdatedAt(LocalDateTime.now());
+    }
+
+    public void changeTaskStatus(Task task, ChangeTaskStatusRequest request) {
+        task.setStatus(request.getStatus());
+        task.setUpdatedAt(LocalDateTime.now());
+    }
+
+    public void changeTaskPriority(Task task, ChangeTaskPriorityRequest request) {
+        task.setPriority(request.getPriority());
         task.setUpdatedAt(LocalDateTime.now());
     }
 }
