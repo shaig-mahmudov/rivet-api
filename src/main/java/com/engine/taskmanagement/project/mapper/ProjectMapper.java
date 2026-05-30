@@ -4,7 +4,6 @@ import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.entity.Project;
-import com.engine.taskmanagement.user.entity.User;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;

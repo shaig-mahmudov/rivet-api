@@ -1,7 +1,5 @@
 package com.engine.taskmanagement.task.controller;
 
-import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
-import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;

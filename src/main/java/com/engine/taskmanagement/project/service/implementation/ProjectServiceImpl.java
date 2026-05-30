@@ -1,6 +1,5 @@
 package com.engine.taskmanagement.project.service.implementation;
 
-import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
@@ -9,8 +8,6 @@ import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.mapper.ProjectMapper;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
-import com.engine.taskmanagement.task.dto.response.TaskResponse;
-import com.engine.taskmanagement.task.entity.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
