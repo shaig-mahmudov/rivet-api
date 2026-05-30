@@ -1,277 +1,296 @@
-# TaskManagement Next Feature TODO
+# TaskManagement MVP TODO
 
-Generated: 2026-05-29
+Generated: 2026-05-30
 
-## Current State Snapshot
+## Current Snapshot
 
-The project has grown since the previous report. It now has:
+The project is now closer to an MVP than before.
 
-- Task entity, DTOs, mapper, repository, service, and controller.
-- Project entity, DTOs, mapper, repository, service, and controller.
-- User entity, DTOs, repository, and service interface.
-- Global exception handler and custom runtime exceptions.
-- Relationships started between `Task`, `Project`, and `User`.
+What is already present:
 
-The project is still not ready for bigger features yet because several core flows are unfinished or partially connected:
+- Spring Boot backend with Java 21 and Maven.
+- `.env` support through `springboot4-dotenv`.
+- Dev profile for MySQL and prod profile for PostgreSQL.
+- Base entity with `createdAt`, `updatedAt`, `deletedAt`, soft delete, and restore support.
+- Task module with create, list, get by id, update, partial update service, soft delete, hard delete service, and restore service.
+- Project module with create, list, update service, soft delete service, hard delete service, and restore service.
+- User entity, repository, mapper, service interface, and service implementation.
+- Custom exception classes and global exception handler.
+- Safer `ProjectResponse` shape that no longer returns full `User` and `Task` entities.
+- `UserResponse` no longer exposes password.
 
-- Maven wrapper still fails before tests can run.
-- Task update returns `null`.
-- Task controller has no update endpoint.
-- Project list currently returns deleted projects instead of active projects.
-- User service implementation and controller are empty.
-- Auth service and controller are empty.
-- Passwords are exposed in entity/response DTOs and database config.
-- Task creation can overwrite default priority/status with `null`.
-- Project and user responses expose entity objects directly, which can cause recursion, lazy-loading issues, and password leaks.
+Important note: I did not run the build/test command during this update. The TODO below is based on static code review.
 
-## Do First: Foundation Fixes
+## MVP Goal
 
-These should happen before adding new business features.
+Build a working prototype where a user can:
 
-### 1. Fix Build And Test Execution
+- Create projects.
+- List projects.
+- Update projects.
+- Create tasks.
+- List tasks.
+- View one task.
+- Update tasks.
+- Soft delete tasks.
+- Restore tasks if needed.
 
-- [ ] Fix the Maven wrapper issue on Windows.
-- [ ] Make `mvnw test` run successfully.
-- [ ] Confirm the project compiles after the recent package moves.
-- [ ] Keep one repeatable command for verification, ideally:
+Authentication can wait unless you specifically want login/register in the first demo.
+
+## Phase 1: Fix MVP Blockers First
+
+### 1. Verify The App Builds And Starts
+
+- [ ] Run the project with the current `.env` and MySQL.
+- [ ] Run tests or at least compile the app.
+- [ ] Confirm the Maven wrapper works on your machine.
+- [ ] Confirm MySQL database `task_management` exists.
+- [ ] Confirm Swagger/OpenAPI loads if available.
+
+Suggested commands:
 
 ```bash
 ./mvnw test
+./mvnw spring-boot:run
 ```
 
-Why first: if the app cannot compile/test reliably, every new feature becomes guesswork.
+Why first: if the app does not compile or start, feature work becomes guesswork.
 
-### 2. Secure Basic Configuration
+### 2. Fix Task Create Defaults
 
-- [ ] Move datasource password out of `application.properties`.
-- [ ] Use environment variables for database URL, username, and password.
-- [ ] Keep only safe defaults in committed config.
-- [ ] Decide whether this project uses MySQL or PostgreSQL, then remove the unused driver.
-- [ ] Add real `application-dev.properties` values or remove the empty dev profile file.
+- [ ] In `TaskMapper.toEntity`, keep default `TaskPriority.MEDIUM` when request priority is missing.
+- [ ] In `TaskMapper.toEntity`, keep default `TaskStatus.TODO` when request status is missing.
+- [ ] Remove duplicate `@Size` annotation on task description.
+- [ ] Remove unused imports from `CreateTaskRequest` and `TaskMapper`.
 
-Why next: credentials and unclear database setup are easy to fix now and painful later.
+Current risk: creating a task with only `title` can set `priority` and `status` to `null`, which conflicts with non-null entity columns.
 
-### 3. Finish Error Handling
+### 3. Expose Existing Task Service Methods In The Controller
 
-- [ ] Add validation error handling for `MethodArgumentNotValidException`.
-- [ ] Add fallback handling for unexpected exceptions.
-- [ ] Return consistent `ErrorResponse` objects everywhere.
-- [ ] Add useful `details` for field validation errors.
+Already exists in service but not fully exposed by controller:
 
-Why next: clean API errors make every endpoint easier to test and debug.
+- [ ] Add `PATCH /api/tasks/{id}` for `partialUpdateTask`.
+- [ ] Add `PATCH /api/tasks/{id}/restore` for `restoreTask`.
+- [ ] Add `DELETE /api/tasks/{id}/hard` only if you really need hard delete in MVP.
 
-## Next: Stabilize The Task Module
+Optional for MVP:
 
-This is the most complete module, so finish it before expanding heavily.
-
-### 4. Fix Task Create Behavior
-
-- [ ] In `TaskMapper.toEntity`, do not set `priority` to `null` when request priority is missing.
-- [ ] In `TaskMapper.toEntity`, do not set `status` to `null` when request status is missing.
-- [ ] Return `taskMapper.toResponse(savedTask)` after saving.
-- [ ] Add `deletedAt` to `TaskResponse` mapping if deleted tasks are returned.
-
-Suggested behavior:
-
-- Missing priority defaults to `MEDIUM`.
-- Missing status defaults to `TODO`.
-
-### 5. Implement Task Update
-
-- [ ] Implement `TaskService.updateTask(Long id, UpdateTaskRequest request)`.
-- [ ] Add `PUT /api/tasks/{id}` endpoint.
-- [ ] Decide whether update is full update or partial update.
-- [ ] If partial update, make fields optional and only update provided values.
-- [ ] Return the updated task response.
-
-### 6. Add Task Status And Priority Change Endpoints
-
-- [ ] Fill `ChangeTaskStatusRequest`.
-- [ ] Fill `ChangeTaskPriorityRequest`.
 - [ ] Add `PATCH /api/tasks/{id}/status`.
 - [ ] Add `PATCH /api/tasks/{id}/priority`.
-- [ ] Validate status and priority transitions if needed.
 
-### 7. Improve Task Delete Flow
+### 4. Fix Task Restore Null Project Bug
 
-- [ ] Use `findByIdAndDeletedAtIsNull` before deleting.
-- [ ] Prevent deleting already deleted tasks twice.
-- [ ] Add restore endpoint: `PATCH /api/tasks/{id}/restore`.
-- [ ] Optional later: add permanent delete endpoint for admins.
+- [ ] In `restoreTask`, check whether `task.getProject()` is `null` before calling `task.getProject().getDeletedAt()`.
 
-### 8. Add Task Filtering
+Current risk: restoring a task without a project can throw `NullPointerException`.
+
+### 5. Fix Project List Query
+
+- [ ] Change project list from `findAllByDeletedAtIsNotNull()` to `findAllByDeletedAtIsNull()`.
+
+Current risk: `GET /api/projects` returns deleted projects instead of active projects, so newly created projects may not appear.
+
+### 6. Expose Existing Project Service Methods In The Controller
+
+Already exists in service but not exposed by controller:
+
+- [ ] Add `DELETE /api/projects/{id}` for soft delete.
+- [ ] Add `PATCH /api/projects/{id}/restore`.
+- [ ] Add `DELETE /api/projects/{id}/hard` only if needed for MVP.
+
+### 7. Map Project Response Fields Correctly
+
+`ProjectResponse` has:
+
+- `ownerId`
+- `ownerUsername`
+- `taskCount`
+
+But `ProjectMapper.toResponse` currently maps only:
+
+- `id`
+- `name`
+- `description`
+
+TODO:
+
+- [ ] Set `ownerId` when owner exists.
+- [ ] Set `ownerUsername` when owner exists.
+- [ ] Set `taskCount` from project tasks size.
+- [ ] Keep full entities out of the response.
+
+This is not a startup blocker, but it makes the API response more useful.
+
+## Phase 2: Minimum User Module
+
+Only do this if MVP needs users. If not, skip to Phase 3.
+
+### 8. Decide Whether Users Are Needed For MVP
+
+- [ ] If MVP is only task/project CRUD, postpone users.
+- [ ] If MVP needs users, finish only the minimum user flow.
+
+### 9. Fix User Service Logic
+
+- [ ] Return `userMapper.toResponse(savedUser)` after saving.
+- [ ] Implement `updateUser`.
+- [ ] Fix `getAllUsers()` to use active users, not deleted users.
+- [ ] Implement `getAllDeletedUsers()`.
+- [ ] Add `findAllByDeletedAtIsNull()` to `UserRepository`.
+
+### 10. Add User Controller Only If Needed
+
+- [ ] Add create user endpoint.
+- [ ] Add list users endpoint.
+- [ ] Add update user endpoint.
+- [ ] Add soft delete user endpoint if needed.
+
+### 11. Fix User Password Handling
+
+- [ ] In `UserMapper.toEntity`, map password only after deciding password strategy.
+- [ ] Do not store `confirmPassword` in entity.
+- [ ] Check password and confirm password match.
+- [ ] Add password hashing before any real login/register feature.
+
+For a local MVP without auth, you can postpone password hashing, but do not present it as production-ready.
+
+## Phase 3: Error Handling And Validation
+
+### 12. Fix Validation Exception Handling
+
+- [ ] Replace the custom `common.exception.MethodArgumentNotValidException` handler with Spring's real validation exception:
+
+```java
+org.springframework.web.bind.MethodArgumentNotValidException
+```
+
+- [ ] Return HTTP 400 for validation errors.
+- [ ] Fill `ErrorResponse.details` with field error messages.
+- [ ] Fix mismatch where validation response body says `CONFLICT` but status is `BAD_REQUEST`.
+
+### 13. Add Basic Request Validation
+
+- [ ] Add name length validation for project create/update.
+- [ ] Add description length validation for project create/update.
+- [ ] Add validation to `PartialUpdateTaskRequest`.
+- [ ] Add `@Valid` to task update endpoint request body.
+- [ ] Add `@Valid` to project update endpoint request body.
+
+## Phase 4: MVP Manual Testing Checklist
+
+Use Postman, Swagger, or curl.
+
+### Project Flow
+
+- [ ] Create project.
+- [ ] List projects and confirm the new project appears.
+- [ ] Update project.
+- [ ] Soft delete project.
+- [ ] Restore project.
+
+### Task Flow
+
+- [ ] Create task with only title.
+- [ ] Create task with title, priority, status, and due date.
+- [ ] List tasks.
+- [ ] Get task by id.
+- [ ] Full update task.
+- [ ] Partial update task.
+- [ ] Soft delete task.
+- [ ] List deleted tasks.
+- [ ] Restore task.
+
+### Error Flow
+
+- [ ] Get missing task id returns 404.
+- [ ] Get missing project id returns 404.
+- [ ] Create task without title returns 400.
+- [ ] Create project without name returns 400.
+
+## Phase 5: After MVP Works
+
+Do these after the prototype is already working.
+
+### 14. Add Task Filtering
 
 - [ ] Filter by status.
 - [ ] Filter by priority.
 - [ ] Search by title.
-- [ ] Filter by project.
-- [ ] Filter by assignee.
 - [ ] Filter overdue tasks.
-- [ ] Add pagination and sorting.
+- [ ] Add pagination.
+- [ ] Add sorting.
 
-## Then: Stabilize The Project Module
+### 15. Connect Tasks To Projects
 
-### 9. Fix Project List Bug
+- [ ] Add `projectId` to create task request.
+- [ ] Add `projectId` to update task request if needed.
+- [ ] Validate project exists and is not deleted.
+- [ ] Return `projectId` or project summary in `TaskResponse`.
 
-- [ ] Change `getAllProjects()` to use `findAllByDeletedAtIsNull()`.
-- [ ] Return deleted projects only from a separate deleted-project endpoint.
+### 16. Connect Tasks To Users Later
 
-This is currently one of the most important behavior bugs.
+- [ ] Add assignee support only after user module is usable.
+- [ ] Add `assigneeId` to task request.
+- [ ] Return assignee summary in task response.
 
-### 10. Complete Project CRUD
+### 17. Add Auth Later
 
-- [ ] Add get project by id.
-- [ ] Add update project.
-- [ ] Add soft delete project.
-- [ ] Add restore project.
-- [ ] Add validation for project name length.
-- [ ] Prevent duplicate project names per owner if ownership is introduced.
-
-### 11. Clean Project DTOs
-
-- [ ] Do not expose `User` entity directly in `ProjectResponse`.
-- [ ] Do not expose `Task` entity directly in `ProjectResponse`.
-- [ ] Use small nested DTOs or id fields instead.
-- [ ] Include `ownerId`, `ownerUsername`, `taskCount`, or simple task summaries.
-
-Why: returning entities from API responses often creates recursion, lazy-loading errors, and accidental sensitive data leaks.
-
-## Then: Build The User Module
-
-### 12. Fix User Model
-
-- [ ] Remove `confirmPassword` from the `User` entity.
-- [ ] Keep `confirmPassword` only in request DTOs.
-- [ ] Make username/email uniqueness clear.
-- [ ] Add default role, probably `USER`.
-- [ ] Add assigned tasks relationship if tasks can be assigned to users.
-
-### 13. Fix User DTOs
-
-- [ ] Add Lombok getters/setters or records for user request/response DTOs.
-- [ ] Remove password from `UserResponse`.
-- [ ] Do not expose projects as entity objects in `UserResponse`.
-- [ ] Add validation:
-  - [ ] valid email format
-  - [ ] password min length
-  - [ ] password and confirm password match
-
-### 14. Implement User Service And Controller
-
-- [ ] Make `UserServiceImpl` implement `UserService`.
-- [ ] Add `@Service`.
-- [ ] Implement create user.
-- [ ] Implement update user.
-- [ ] Add get user by id.
-- [ ] Add get all users.
-- [ ] Add soft delete user if needed.
-- [ ] Add `UserController` endpoints.
-
-## Then: Add Auth And Security
-
-Do this after user creation is clean.
-
-### 15. Add Authentication
-
-- [ ] Add Spring Security dependency.
-- [ ] Add password encoder.
-- [ ] Hash passwords before saving.
+- [ ] Add Spring Security.
 - [ ] Add register endpoint.
 - [ ] Add login endpoint.
-- [ ] Return JWT or session token.
-- [ ] Add request/response DTOs for auth.
+- [ ] Hash passwords.
+- [ ] Add JWT or session strategy.
+- [ ] Protect endpoints.
 
-### 16. Add Authorization
+Auth is not required for the first task/project CRUD MVP unless your demo specifically needs login.
 
-- [ ] Protect task/project/user endpoints.
-- [ ] Only allow users to see their own tasks/projects unless admin.
-- [ ] Add role checks for admin-only operations.
-- [ ] Ensure deleted data is not visible to normal users.
-
-## After That: Quality And Developer Experience
-
-### 17. Add Tests In This Order
-
-- [ ] Mapper tests for task/project/user.
-- [ ] Service tests for task CRUD.
-- [ ] Controller tests for task endpoints.
-- [ ] Project service/controller tests.
-- [ ] User service/controller tests.
-- [ ] Auth tests.
-- [ ] Exception handler tests.
-
-Start with task tests because that module is closest to finished.
-
-### 18. Improve Documentation
-
-- [ ] Expand `README.md`.
-- [ ] Add setup requirements.
-- [ ] Add database setup.
-- [ ] Add environment variable examples.
-- [ ] Add API endpoint examples.
-- [ ] Add sample request/response JSON.
-- [ ] Add troubleshooting section for Maven wrapper and database connection.
-
-### 19. Add Database Migrations
+### 18. Add Database Migrations
 
 - [ ] Add Flyway or Liquibase.
-- [ ] Replace reliance on `spring.jpa.hibernate.ddl-auto=update`.
-- [ ] Create initial migration for users, projects, and tasks.
+- [ ] Stop relying on `ddl-auto=update` for long-term development.
+- [ ] Keep MySQL migrations for dev and PostgreSQL compatibility in mind for prod.
 
-### 20. Add Local Dev Environment
+### 19. Improve Docs
 
-- [ ] Add Docker Compose for database.
-- [ ] Optional: add app container later.
-- [ ] Add `.env.example`.
+- [ ] Update `README.md`.
+- [ ] Document `.env` variables.
+- [ ] Document MySQL dev setup.
+- [ ] Document PostgreSQL prod setup.
+- [ ] Add endpoint examples.
 
-## Feature Ideas After The Core Is Stable
+## Completed Or Mostly Done
 
-These are good next features, but not before the core modules work.
+- [x] Move datasource credentials out of `application.properties`.
+- [x] Add `.env` support.
+- [x] Add dev MySQL profile.
+- [x] Add prod PostgreSQL profile.
+- [x] Keep MySQL and PostgreSQL drivers because both are planned.
+- [x] Add safer simple `ProjectResponse`.
+- [x] Remove password from `UserResponse`.
+- [x] Add `@Service` to `UserServiceImpl`.
+- [x] Implement task full update service.
+- [x] Implement task soft delete using active-task lookup.
+- [x] Add task restore service.
+- [x] Add project update service.
+- [x] Add project soft delete service.
+- [x] Add project restore service.
 
-- [ ] Comments on tasks.
-- [ ] Task activity history.
-- [ ] Task labels/tags.
-- [ ] Attachments.
-- [ ] Due date reminders.
-- [ ] Kanban board endpoints.
-- [ ] Project members.
-- [ ] Team/workspace model.
-- [ ] Dashboard statistics.
-- [ ] Export tasks to CSV.
-- [ ] Frontend web app.
-- [ ] Admin panel.
+## Current Highest Priority Order
 
-## Recommended Order Summary
-
-1. Fix Maven/test execution.
-2. Secure configuration and remove committed secrets.
-3. Finish exception handling.
-4. Finish task create/update/delete/status/priority flows.
-5. Fix project list and complete project CRUD.
-6. Clean all response DTOs so entities and passwords are not exposed.
-7. Implement user service and controller.
-8. Add authentication and password hashing.
-9. Add authorization.
-10. Add tests.
-11. Add migrations and Docker Compose.
-12. Add comments, dashboard, frontend, and other larger features.
+1. Run/compile the app and confirm it starts.
+2. Fix task default priority/status.
+3. Fix project list query.
+4. Add controller endpoints for existing restore/delete/partial-update services.
+5. Fix task restore null project bug.
+6. Fix validation exception handling.
+7. Manually test project CRUD.
+8. Manually test task CRUD.
+9. Decide whether users/auth are needed for MVP.
 
 ## What Not To Do Yet
 
 - Do not build a frontend yet.
-- Do not add comments before tasks/projects/users are stable.
-- Do not add JWT before password storage and user creation are correct.
-- Do not add many endpoints before `mvnw test` works.
+- Do not add JWT before the basic task/project API works.
+- Do not add comments, dashboard, notifications, or teams before MVP CRUD is stable.
 - Do not return JPA entities directly from API responses.
-
-## Best Immediate Next Task
-
-Start with this exact sequence:
-
-1. Fix Maven wrapper/test execution.
-2. Fix `TaskMapper.toEntity` so missing status/priority keep defaults.
-3. Implement task update service and endpoint.
-4. Fix project `getAllProjects()` to return active projects.
-5. Remove password from all response DTOs.
-
-That gives you a stable base quickly and clears the biggest current risks.
+- Do not spend time on advanced filters before create/list/update/delete works reliably.
