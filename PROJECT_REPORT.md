@@ -1,12 +1,12 @@
 # TaskManagement Project Report
 
-Generated: 2026-05-27
+Generated: 2026-05-30
 
 ## 1. Project Summary
 
-TaskManagement is a Java 21 Spring Boot backend project for task management. It is currently an early-stage REST API with a partially implemented task module and placeholder packages for users, authentication, projects, comments, and common exception handling.
+TaskManagement is a Java 21 Spring Boot backend for a task/project management API. The project has moved from an early skeleton into a near-MVP backend for project and task CRUD.
 
-The project already shows the intended architecture: controller, service, repository, entity, DTO, mapper, enum, and common layers. The strongest implemented area is task creation, task listing, task lookup, and soft deletion.
+The strongest current area is the task/project API. Tasks and projects now support create, list, update, soft delete, hard delete, and restore flows. Task-specific status and priority change endpoints also exist. User/auth code is still mostly incomplete and should not be treated as part of the MVP unless it is finished later.
 
 ## 2. Technology Stack
 
@@ -17,10 +17,11 @@ The project already shows the intended architecture: controller, service, reposi
 - Jakarta Bean Validation
 - Lombok
 - Springdoc OpenAPI UI
-- MySQL runtime driver
-- PostgreSQL runtime driver
+- `springboot4-dotenv`
+- MySQL driver for development
+- PostgreSQL driver for production
 - Maven Wrapper
-- JUnit/Spring Boot test setup
+- JUnit/Spring Boot test starter setup
 
 ## 3. Project Structure
 
@@ -28,321 +29,341 @@ The project already shows the intended architecture: controller, service, reposi
 TaskManagement/
 |-- pom.xml
 |-- README.md
+|-- PROJECT_REPORT.md
+|-- NEXT_FEATURE_TODO.md
 |-- mvnw
 |-- mvnw.cmd
-|-- .mvn/
-|   `-- wrapper/
-|       `-- maven-wrapper.properties
 |-- src/
 |   |-- main/
 |   |   |-- java/com/engine/taskmanagement/
 |   |   |   |-- TaskManagementApplication.java
 |   |   |   |-- auth/
-|   |   |   |   |-- AuthController.java
-|   |   |   |   |-- AuthService.java
-|   |   |   |   |-- AuthServiceImpl.java
-|   |   |   |   `-- enums/Role.java
+|   |   |   |   |-- controller/
+|   |   |   |   |-- service/
+|   |   |   |   `-- enums/
 |   |   |   |-- common/
-|   |   |   |   |-- entity/BaseEntity.java
+|   |   |   |   |-- dto/
+|   |   |   |   |-- entity/
 |   |   |   |   `-- exception/
 |   |   |   |-- project/
-|   |   |   |   `-- Project.java
+|   |   |   |   |-- controller/
+|   |   |   |   |-- dto/
+|   |   |   |   |-- entity/
+|   |   |   |   |-- mapper/
+|   |   |   |   |-- repository/
+|   |   |   |   `-- service/
 |   |   |   |-- task/
-|   |   |   |   |-- controller/TaskController.java
-|   |   |   |   |-- dto/request/
-|   |   |   |   |-- dto/response/
-|   |   |   |   |-- entity/Task.java
+|   |   |   |   |-- controller/
+|   |   |   |   |-- dto/
+|   |   |   |   |-- entity/
 |   |   |   |   |-- enums/
-|   |   |   |   |-- mapper/TaskMapper.java
-|   |   |   |   |-- repository/TaskRepository.java
+|   |   |   |   |-- mapper/
+|   |   |   |   |-- repository/
 |   |   |   |   `-- service/
 |   |   |   `-- user/
-|   |   |-- resources/
-|   |   |   |-- application.properties
-|   |   |   `-- application-dev.properties
+|   |   |       |-- controller/
+|   |   |       |-- dto/
+|   |   |       |-- entity/
+|   |   |       |-- mapper/
+|   |   |       |-- repository/
+|   |   |       `-- service/
+|   |   `-- resources/
+|   |       |-- application.properties
+|   |       |-- application-dev.properties
+|   |       `-- application-prod.properties
 |   `-- test/
 |       `-- java/com/engine/taskmanagement/
 |           `-- TaskManagementApplicationTests.java
 ```
 
-There are 31 Java files under `src/main/java`, 2 resource config files, and 1 test file.
+## 4. What The Project Has Now
 
-## 4. What The Project Has
+### Application And Config
 
-### Application Foundation
+- Spring Boot entry point.
+- JPA auditing enabled.
+- Maven configuration.
+- `.env` support through `springboot4-dotenv`.
+- `.env` is ignored by Git.
+- Base config in `application.properties`.
+- MySQL development config in `application-dev.properties`.
+- PostgreSQL production config in `application-prod.properties`.
+- Datasource password is no longer hardcoded in `application.properties`.
 
-- Spring Boot application entry point.
-- JPA auditing enabled with `@EnableJpaAuditing`.
-- Maven project configuration.
-- Maven wrapper files.
-- `.gitignore` configured for Maven target files and common IDE folders.
+### Common Layer
 
-### Task Domain
+- `BaseEntity` with:
+  - `id`
+  - `createdAt`
+  - `updatedAt`
+  - `deletedAt`
+  - `markAsDeleted()`
+  - `restore()`
+  - `isDeleted()`
+- Custom exception classes.
+- `ErrorResponse` DTO.
+- `GlobalExceptionHandler` with handlers for custom exceptions.
 
-- `Task` JPA entity with:
-  - `title`
-  - `description`
-  - `priority`
-  - `status`
-  - `dueDate`
-  - inherited `id`, `createdAt`, `updatedAt`, `deletedAt`
-- `BaseEntity` mapped superclass with auditing fields and soft delete support.
-- Task priority enum:
-  - `LOW`
-  - `MEDIUM`
-  - `HIGH`
-  - `URGENT`
-- Task status enum:
-  - `TODO`
-  - `IN_PROGRESS`
-  - `DONE`
-  - `CANCELLED`
-- Task request and response DTOs.
-- Task mapper for converting request DTOs to entities and entities to responses.
-- Task repository with several finder methods:
-  - by title
-  - title containing ignore case
-  - by status
-  - by priority
-  - active tasks
-  - deleted tasks
-  - active task by id
-- Task service interface and implementation.
-- Task controller with endpoints:
-  - `POST /api/tasks`
-  - `GET /api/tasks`
-  - `GET /api/tasks/deleted`
-  - `GET /api/tasks/{id}`
-  - `DELETE /api/tasks/{id}`
+### Task Module
 
-### Validation
+Task has a complete MVP-shaped API.
 
-- Basic validation exists on create and update task request DTOs:
-  - title is required
-  - title max length is 100
-  - description max length is 500
+Entity fields include:
 
-### API Documentation Dependency
+- `title`
+- `description`
+- `priority`
+- `status`
+- `dueDate`
+- optional project relation
+- optional assignee relation
 
-- Springdoc OpenAPI UI dependency is present, so Swagger/OpenAPI can be enabled by the framework.
+Task statuses:
 
-### Testing Foundation
+- `TODO`
+- `IN_PROGRESS`
+- `DONE`
+- `CANCELLED`
 
-- A basic Spring Boot context-load test exists.
+Task priorities:
 
-## 5. What The Project Does Not Have Yet
+- `LOW`
+- `MEDIUM`
+- `HIGH`
+- `URGENT`
 
-### Missing Feature Implementations
-
-- No real authentication implementation.
-- No login endpoint.
-- No registration endpoint.
-- No JWT/session/security configuration.
-- No password hashing.
-- No authorization rules.
-- No implemented user entity, user repository, user service, or user controller.
-- No implemented project entity beyond an empty class.
-- No comment feature, although a `comment` package directory exists.
-- No task update endpoint in the controller.
-- `TaskService.updateTask(...)` is declared but currently returns `null`.
-- Empty DTOs for changing task status and priority.
-- No restore endpoint for soft-deleted tasks.
-- No permanent delete endpoint.
-- No filtering endpoints for status, priority, due date, title search, or deleted state.
-- No pagination or sorting.
-- No frontend UI.
-
-### Missing Error Handling
-
-- `GlobalExceptionHandler` is empty.
-- Custom exception classes are empty and do not extend `RuntimeException`.
-- Task not found currently throws plain `RuntimeException("TaskNotFound")`.
-- Validation errors will not be converted into a clean custom API response.
-
-### Missing Data Relationships
-
-- Tasks are not connected to users.
-- Tasks are not connected to projects.
-- Tasks are not connected to comments.
-- No ownership model exists, so all tasks are global.
-
-### Missing Database/DevOps Pieces
-
-- No migration tool such as Flyway or Liquibase.
-- No Docker Compose file for local database setup.
-- No environment-variable based configuration.
-- Database credentials are stored directly in `application.properties`.
-- Both MySQL and PostgreSQL drivers are present, but the app is configured only for MySQL.
-- No production profile.
-- `application-dev.properties` exists but is fully commented out.
-
-### Missing Documentation
-
-- `README.md` only contains the project title.
-- No setup instructions.
-- No database setup instructions.
-- No API examples.
-- No endpoint documentation in the repository.
-- No architecture notes.
-
-### Missing Tests
-
-- No controller tests.
-- No service tests.
-- No repository tests.
-- No validation tests.
-- No mapper tests.
-- No error handling tests.
-- No integration tests for task CRUD.
-
-## 6. Pluses
-
-- Clear package direction: `auth`, `user`, `task`, `project`, `common`.
-- Task module already follows a layered backend style.
-- DTOs are separated from entities.
-- Mapper class exists, which keeps conversion logic out of controllers.
-- Soft delete concept is already present through `deletedAt`.
-- JPA auditing is enabled.
-- Enums make task status and priority explicit.
-- Validation dependency and annotations are already introduced.
-- OpenAPI dependency is included for future API documentation.
-- The codebase is small and easy to refactor right now.
-
-## 7. Minuses And Risks
-
-- The application is only partially functional.
-- Several classes are placeholders, which can give a false impression that features exist.
-- `TaskService.updateTask(...)` returns `null`, so update behavior is unfinished.
-- `TaskController` does not expose update, status change, or priority change endpoints.
-- `TaskMapper.toEntity(...)` sets priority and status directly from the request. If the client omits them, the entity defaults can be overwritten with `null`, which conflicts with non-null database columns.
-- `TaskMapper.toResponse(...)` does not set `deletedAt`, even though `TaskResponse` has the field.
-- `TaskService.createTask(...)` saves `savedTask` but maps `task`; mapping `savedTask` would be clearer.
-- Error handling is not production-ready.
-- Empty exception classes do not currently help the API.
-- Database password is committed in plain text.
-- The active `dev` profile points to an empty/commented dev properties file, while real database settings remain in the base properties file.
-- No database migrations means schema changes depend on Hibernate `ddl-auto=update`.
-- The Maven wrapper failed to start on this machine, and no global Maven installation is available.
-- Only one default context-load test exists.
-
-## 8. Current Endpoint Status
+Task endpoints:
 
 | Endpoint | Status | Notes |
 |---|---:|---|
-| `POST /api/tasks` | Partial | Creates task, but missing default handling for omitted priority/status. |
-| `GET /api/tasks` | Present | Returns non-deleted tasks. |
-| `GET /api/tasks/deleted` | Present | Returns soft-deleted tasks. |
-| `GET /api/tasks/{id}` | Partial | Works for active tasks, but throws plain runtime exception when missing. |
-| `DELETE /api/tasks/{id}` | Partial | Soft deletes task, but can delete already deleted tasks and does not use custom exception. |
-| `PUT/PATCH /api/tasks/{id}` | Missing | Service method exists but is unfinished and controller endpoint is missing. |
-| Auth endpoints | Missing | Auth classes are placeholders. |
-| User endpoints | Missing | User classes are placeholders. |
-| Project endpoints | Missing | Project class is placeholder only. |
-| Comment endpoints | Missing | Package exists but no files were found. |
+| `POST /api/tasks` | Present | Creates task. Defaults are preserved when status/priority are missing. |
+| `GET /api/tasks` | Present | Lists active tasks. |
+| `GET /api/tasks/deleted` | Present | Lists soft-deleted tasks. |
+| `GET /api/tasks/{id}` | Present | Gets one active task. |
+| `PUT /api/tasks/{id}` | Present | Full update with validation. |
+| `PATCH /api/tasks/{id}` | Present | Partial update. |
+| `DELETE /api/tasks/{id}` | Present | Soft delete. |
+| `DELETE /api/tasks/{id}/hard` | Present | Permanent delete. |
+| `POST /api/tasks/{id}/restore` | Present | Restores soft-deleted task. |
+| `POST /api/tasks/{id}/status` | Present but likely bugged | Currently looks up deleted tasks, not active tasks. |
+| `POST /api/tasks/{id}/priority` | Present but likely bugged | Currently looks up deleted tasks, not active tasks. |
 
-## 9. Verification Notes
+### Project Module
 
-I attempted to run the test suite with:
+Project has a mostly complete MVP-shaped API.
+
+Entity fields include:
+
+- `name`
+- `description`
+- optional owner relation
+- task list relation
+
+Project endpoints:
+
+| Endpoint | Status | Notes |
+|---|---:|---|
+| `POST /api/projects` | Present | Creates project. |
+| `GET /api/projects` | Present | Lists active projects. |
+| `PUT /api/projects/{id}` | Present | Updates active project. |
+| `DELETE /api/projects/{id}` | Present | Soft delete. |
+| `DELETE /api/projects/{id}/hard` | Present | Permanent delete. |
+| `POST /api/projects/{id}/restore` | Present | Restores soft-deleted project. |
+
+### User Module
+
+User module exists structurally but is not MVP-ready.
+
+Present:
+
+- `User` entity.
+- `UserRepository`.
+- `UserMapper`.
+- `UserService` interface.
+- `UserServiceImpl` annotated with `@Service`.
+- `CreateUserRequest`.
+- `UpdateUserRequest`.
+- `UserResponse`.
+
+Still incomplete:
+
+- `UserController` is empty.
+- `updateUser()` returns `null`.
+- `getAllUsers()` currently returns deleted users.
+- `getAllDeletedUsers()` returns an empty list.
+- Password from create request is not mapped into entity.
+- Password hashing does not exist.
+- Email validation is minimal.
+
+### Auth Module
+
+Auth is still placeholder-level.
+
+Present:
+
+- `Role` enum with `USER` and `ADMIN`.
+- Auth controller/service files.
+
+Missing:
+
+- Register endpoint.
+- Login endpoint.
+- Password encoder.
+- JWT/session strategy.
+- Spring Security config.
+- Authorization rules.
+
+## 5. Current Big Issues
+
+### 1. Build/Test Is Not Verified
+
+Running:
 
 ```bash
-./mvnw.cmd test
+cmd /c mvnw.cmd test
 ```
 
-Result: the Maven wrapper failed before compilation with:
+still fails before compilation with:
 
 ```text
 Cannot index into a null array.
 Cannot start maven from wrapper
 ```
 
-I also checked for global Maven:
+So the application has not been compile-verified in this review.
 
-```bash
-mvn -v
+### 2. Task Status/Priority Change Likely Uses Wrong Query
+
+`changeTaskStatus` and `changeTaskPriority` currently use:
+
+```java
+findByIdAndDeletedAtIsNotNull(id)
 ```
 
-Result: Maven is not installed or not available on `PATH`.
+That means they look for deleted tasks. For normal status/priority changes, they should probably use active tasks:
 
-Because of that, the project was not compiled or tested during this review.
+```java
+findByIdAndDeletedAtIsNull(id)
+```
 
-## 10. Recommended Next Fixes
+This is probably the most important current business-logic bug.
 
-1. Fix task creation defaults.
-   - Keep `TaskPriority.MEDIUM` and `TaskStatus.TODO` when request values are missing.
+### 3. Validation Handler Catches The Wrong Exception
 
-2. Finish task update.
-   - Implement `TaskService.updateTask(...)`.
-   - Add `PUT /api/tasks/{id}` or `PATCH /api/tasks/{id}`.
+The project defines a custom `common.exception.MethodArgumentNotValidException`, and the global handler catches that custom class.
 
-3. Implement proper exceptions.
-   - Make custom exceptions extend `RuntimeException`.
-   - Add `@RestControllerAdvice` to `GlobalExceptionHandler`.
-   - Return consistent JSON error responses.
+Spring validation failures normally throw:
 
-4. Move secrets out of source code.
-   - Use environment variables for datasource URL, username, and password.
-   - Keep local values in an ignored local profile file or documented environment setup.
+```java
+org.springframework.web.bind.MethodArgumentNotValidException
+```
 
-5. Improve README.
-   - Add requirements, database setup, run commands, test commands, and API examples.
+So validation errors from `@Valid` may not be formatted by the custom handler as intended.
 
-6. Repair Maven/test execution.
-   - Investigate Maven wrapper issue.
-   - Ensure the project can run `mvnw test` on Windows.
+### 4. Project Response Has Unmapped Fields
 
-## 11. Next Feature Ideas
+`ProjectResponse` includes:
 
-### Small, High-Value Features
+- `ownerId`
+- `ownerUsername`
+- `taskCount`
 
-- Task update endpoint.
-- Task restore endpoint.
-- Task permanent delete endpoint.
-- Change task status endpoint.
-- Change task priority endpoint.
-- Search tasks by title.
-- Filter tasks by status and priority.
-- Filter overdue tasks.
-- Sort tasks by due date, priority, or creation date.
-- Add pagination to task lists.
+but `ProjectMapper.toResponse()` currently sets only:
 
-### Medium Features
+- `id`
+- `name`
+- `description`
 
-- User registration and login.
-- JWT authentication.
+This is not a blocker, but the response shape is misleading until those fields are mapped or removed.
+
+### 5. Hard Delete Exists Without Auth
+
+Hard delete endpoints are available for tasks and projects. For an MVP prototype this may be acceptable, but once auth exists, hard delete should probably be protected or removed from public use.
+
+### 6. User/Auth Are Not Ready
+
+If MVP means task/project CRUD only, this is fine.
+
+If MVP includes users or login, the project is not ready yet.
+
+## 6. Pluses
+
+- Project now has a much clearer domain structure.
+- Task API is close to usable for a prototype.
+- Project API is close to usable for a prototype.
+- Soft delete and restore exist consistently.
+- Config is much safer than before: passwords are no longer committed in `application.properties`.
+- `.env` support makes local development easier.
+- Dev/prod database split is clear: MySQL for dev, PostgreSQL for prod.
+- DTOs are used for request/response instead of returning entities in the main task/project responses.
+- `ProjectResponse` no longer returns full `User` or `Task` objects.
+- `UserResponse` no longer exposes password.
+- Global exception handling exists.
+- Validation annotations are used on important create/update DTOs.
+
+## 7. Minuses And Risks
+
+- Maven wrapper failure blocks confidence.
+- No useful automated test coverage yet.
+- Status/priority change endpoints likely operate on deleted tasks by mistake.
+- Validation exception handling is incomplete.
+- User module is half-implemented.
+- Auth module is placeholder-only.
+- `ProjectResponse` has fields that are not mapped.
+- `TaskResponse` has `deletedAt`, but mapper does not set it.
+- Hard delete is exposed before authorization exists.
+- No pagination, sorting, or filtering.
+- No database migrations.
+- `ddl-auto=update` is still used in dev.
+- `README.md` is still minimal.
+
+## 8. MVP Readiness
+
+For a task/project CRUD prototype, the project is close.
+
+Minimum fixes before calling it MVP:
+
+1. Fix Maven wrapper or verify build another way.
+2. Fix task status/priority change queries to use active tasks.
+3. Fix Spring validation exception handling.
+4. Decide whether hard delete endpoints should remain available.
+5. Manually test task and project flows with real MySQL.
+
+Users/auth should wait unless they are part of the required demo.
+
+## 9. Suggested Next Order
+
+1. Make `mvnw test` or `mvnw spring-boot:run` work.
+2. Fix `changeTaskStatus` and `changeTaskPriority`.
+3. Fix validation handler to catch Spring's real validation exception.
+4. Map or remove unused `ProjectResponse` fields.
+5. Map `deletedAt` in responses if deleted lists need it.
+6. Manually test task CRUD.
+7. Manually test project CRUD.
+8. Update `README.md` with setup and endpoint examples.
+9. Decide whether users/auth are needed in MVP.
+
+## 10. Feature Ideas After MVP
+
+- Task filtering by status and priority.
+- Task title search.
+- Pagination and sorting.
+- Assign tasks to projects through `projectId`.
 - Assign tasks to users.
-- Project entity and project CRUD.
-- Add tasks to projects.
+- User CRUD.
+- Register/login.
+- Password hashing.
+- JWT auth.
+- Role-based authorization.
 - Comments on tasks.
-- Task activity history.
-- Due date reminders.
-- File attachments.
+- Activity history.
+- Project members.
+- Dashboard statistics.
+- Flyway or Liquibase migrations.
+- Docker Compose for local MySQL.
 
-### Larger Features
+## 11. Overall Assessment
 
-- Role-based access control for `ADMIN` and `USER`.
-- Team/workspace model.
-- Kanban board API.
-- Notification system.
-- Audit log.
-- Reporting dashboard.
-- Frontend web app.
-- Docker Compose setup for app plus database.
-- CI pipeline that runs tests on every push.
+The project is no longer just a skeleton. It is now close to a working backend prototype for task and project management.
 
-## 12. Suggested Development Order
-
-1. Make the current task API reliable.
-2. Add clean exception handling.
-3. Add tests around task CRUD.
-4. Add database/environment setup documentation.
-5. Implement user and auth.
-6. Connect tasks to users.
-7. Add projects.
-8. Add comments and activity history.
-9. Add filtering, pagination, and reporting.
-
-## 13. Overall Assessment
-
-The project is a good early backend skeleton. It has a sensible package layout and the beginning of a clean task-management domain, but it is not yet a complete task management system. The current strongest piece is the task module, especially entity/repository/controller layering and soft delete. The biggest gaps are unfinished update logic, placeholder auth/user/project code, empty exception handling, weak documentation, no useful tests, and plain-text database credentials.
-
-The best next step is to stabilize the existing task module before adding larger features.
+The best next move is not adding more features. The best next move is verification and bug fixing: get the app running, fix the active/deleted lookup bug in task status/priority changes, and make validation errors behave correctly. After that, the task/project MVP should be testable end to end.

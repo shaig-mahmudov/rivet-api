@@ -13,6 +13,7 @@ Already present:
 - Dev MySQL profile and prod PostgreSQL profile.
 - Base entity with auditing, soft delete, and restore support.
 - Task create, list, get by id, full update, partial update, soft delete, hard delete, deleted list, and restore endpoints.
+- Task status and priority change endpoints.
 - Project create, list, update, soft delete, hard delete, and restore endpoints.
 - Project list now returns active projects.
 - Task create now preserves default priority/status when request values are missing.
@@ -49,30 +50,37 @@ Why first: the code has moved a lot. Before adding features, prove the current a
 
 ## Phase 2: Remaining MVP Bugs
 
-### 2. Fix Task Restore For Standalone Tasks
+### 2. Fix Task Status/Priority Change Queries
 
-Current code rejects restore when `task.getProject() == null`.
-
-- [ ] Allow restore when task has no project.
-- [ ] Reject restore only when task has a project and that project is deleted.
-
-Expected logic:
+Current `changeTaskStatus` and `changeTaskPriority` use:
 
 ```java
-if (task.getProject() != null && task.getProject().getDeletedAt() != null) {
-    throw new BadRequestException("Cannot restore task because its project is deleted");
-}
+findByIdAndDeletedAtIsNotNull(id)
 ```
 
-Why this matters: your MVP currently allows tasks without project, so restore should also support standalone tasks.
+That searches deleted tasks. For normal status and priority changes, use active tasks instead:
 
-### 3. Add `@Valid` To Update Endpoints
+```java
+findByIdAndDeletedAtIsNull(id)
+```
 
-- [ ] Add `@Valid` to `TaskController.updateTask`.
+TODO:
+
+- [ ] Fix `changeTaskStatus` to load active tasks.
+- [ ] Fix `changeTaskPriority` to load active tasks.
+- [ ] Add manual test for changing status on an active task.
+- [ ] Add manual test for changing priority on an active task.
+
+Why this matters: these endpoints currently likely fail for normal active tasks.
+
+### 3. Finish Validation Coverage
+
+- [x] Add `@Valid` to `TaskController.updateTask`.
+- [x] Add `@Valid` to `ProjectController.updateProject`.
+- [ ] Add validation annotations to `PartialUpdateTaskRequest` where useful.
 - [ ] Add `@Valid` to `TaskController.partialUpdateTask` if validation annotations are added there.
-- [ ] Add `@Valid` to `ProjectController.updateProject`.
 
-Why this matters: create endpoints validate input, but update endpoints currently bypass request validation.
+Why this matters: create and full update endpoints validate input, but partial update currently has no field constraints.
 
 ### 4. Fix Validation Exception Handling
 
@@ -85,8 +93,8 @@ Current handler catches your custom `common.exception.MethodArgumentNotValidExce
 
 ### 5. Clean Minor Endpoint Details
 
-- [ ] Add missing slash in `@PostMapping("{id}/restore")` in `TaskController`; use `@PostMapping("/{id}/restore")`.
-- [ ] Make `ProjectController.restoreProject` public instead of private.
+- [x] Add missing slash in `@PostMapping("{id}/restore")` in `TaskController`; use `@PostMapping("/{id}/restore")`.
+- [x] Make `ProjectController.restoreProject` public instead of private.
 - [ ] Decide whether hard delete endpoints should stay in MVP or be removed until admin/auth exists.
 
 These are small, but they make the API cleaner and less surprising.
@@ -145,6 +153,8 @@ Use Postman, Swagger, or curl.
 - [ ] `DELETE /api/tasks/{id}` soft deletes a task.
 - [ ] `GET /api/tasks/deleted` returns deleted tasks.
 - [ ] `POST /api/tasks/{id}/restore` restores a deleted task.
+- [ ] `POST /api/tasks/{id}/status` changes status on an active task.
+- [ ] `POST /api/tasks/{id}/priority` changes priority on an active task.
 - [ ] Optional: `DELETE /api/tasks/{id}/hard` permanently deletes a task.
 
 ### Error Flow
@@ -223,6 +233,9 @@ Do these later.
 - [x] Implement task soft delete endpoint.
 - [x] Implement task hard delete endpoint.
 - [x] Implement task restore endpoint.
+- [x] Fix standalone task restore logic.
+- [x] Implement task status change endpoint.
+- [x] Implement task priority change endpoint.
 - [x] Preserve task default priority/status during create.
 - [x] Remove duplicate task description `@Size`.
 - [x] Fix project list to return active projects.
@@ -230,18 +243,21 @@ Do these later.
 - [x] Implement project soft delete endpoint.
 - [x] Implement project hard delete endpoint.
 - [x] Implement project restore endpoint.
+- [x] Add `@Valid` to task full update endpoint.
+- [x] Add `@Valid` to project update endpoint.
+- [x] Clean task restore mapping slash.
+- [x] Make project restore controller method public.
 
 ## Current Highest Priority Order
 
 1. Compile/run the app.
-2. Fix standalone task restore.
+2. Fix task status/priority change queries to use active tasks.
 3. Fix validation exception handling.
-4. Add `@Valid` to update endpoints.
-5. Clean restore endpoint mappings/access modifiers.
-6. Decide whether hard delete endpoints stay in MVP.
-7. Manually test project flow.
-8. Manually test task flow.
-9. Postpone users/auth unless the MVP demo needs them.
+4. Decide whether hard delete endpoints stay in MVP.
+5. Map or remove unused `ProjectResponse` fields.
+6. Manually test project flow.
+7. Manually test task flow.
+8. Postpone users/auth unless the MVP demo needs them.
 
 ## What Not To Do Yet
 
