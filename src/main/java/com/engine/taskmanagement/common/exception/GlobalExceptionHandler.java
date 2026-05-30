@@ -109,6 +109,6 @@ public class GlobalExceptionHandler{
                 null
         );
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 }

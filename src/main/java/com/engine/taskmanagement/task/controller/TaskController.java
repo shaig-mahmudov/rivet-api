@@ -69,7 +69,7 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("{id}/restore")
+    @PostMapping("/{id}/restore")
     public ResponseEntity<TaskResponse> restoreTask(@PathVariable Long id) {
         TaskResponse response = taskService.restoreTask(id);
         return ResponseEntity.ok(response);

@@ -57,7 +57,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/restore")
-    private ResponseEntity<ProjectResponse> restoreProject(@PathVariable Long id) {
+    public ResponseEntity<ProjectResponse> restoreProject(@PathVariable Long id) {
         ProjectResponse response = projectService.restoreProject(id);
         return ResponseEntity.ok(response);
     }
