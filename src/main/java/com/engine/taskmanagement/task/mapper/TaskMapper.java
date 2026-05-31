@@ -40,6 +40,10 @@ public class TaskMapper {
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
 
+        if (task.getProject() != null) {
+            response.setProjectId(task.getProject().getId());
+        }
+
         return response;
     }
 

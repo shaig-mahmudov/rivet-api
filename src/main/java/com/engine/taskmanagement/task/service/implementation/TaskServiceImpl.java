@@ -74,7 +74,15 @@ public class TaskServiceImpl implements TaskService {
     public TaskResponse updateTask(Long id, UpdateTaskRequest request) {
         Task currentTask = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
         taskMapper.updateEntity(currentTask, request);
+
+        if (request.getProjectId() != null) {
+            Project project = projectRepository.findByIdAndDeletedAtIsNull(request.getProjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Active project not found"));
+
+            currentTask.setProject(project);
+        }
         Task updatedTask = taskRepository.save(currentTask);
         return taskMapper.toResponse(updatedTask);
     }
