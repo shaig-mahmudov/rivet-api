@@ -4,6 +4,7 @@ import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.FilterTaskRequest;
 import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
@@ -157,10 +158,74 @@ class TaskServiceImplTest {
         assertThat(response.getPriority()).isEqualTo(TaskPriority.URGENT);
     }
 
+    @Test
+    void getFilteredTasksFiltersByStatusAndExcludesDeletedTasks() {
+        TaskResponse todoTask = taskService.createTask(createTaskRequest("Todo task"));
+        TaskResponse doneTask = taskService.createTask(createTaskRequest("Done task"));
+        TaskResponse deletedTodoTask = taskService.createTask(createTaskRequest("Deleted todo task"));
+        changeStatus(doneTask.getId(), TaskStatus.DONE);
+        taskService.deleteTask(deletedTodoTask.getId());
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setStatus(TaskStatus.TODO);
+
+        assertThat(taskService.getFilteredTasks(request))
+                .extracting(TaskResponse::getId)
+                .containsExactly(todoTask.getId());
+    }
+
+    @Test
+    void getFilteredTasksFiltersByPriorityAndExcludesDeletedTasks() {
+        TaskResponse mediumTask = taskService.createTask(createTaskRequest("Medium task"));
+        TaskResponse highTask = taskService.createTask(createTaskRequest("High task"));
+        TaskResponse deletedHighTask = taskService.createTask(createTaskRequest("Deleted high task"));
+        changePriority(highTask.getId(), TaskPriority.HIGH);
+        changePriority(deletedHighTask.getId(), TaskPriority.HIGH);
+        taskService.deleteTask(deletedHighTask.getId());
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setPriority(TaskPriority.HIGH);
+
+        assertThat(taskService.getFilteredTasks(request))
+                .extracting(TaskResponse::getId)
+                .containsExactly(highTask.getId());
+        assertThat(taskService.getAllTasks())
+                .extracting(TaskResponse::getId)
+                .contains(mediumTask.getId());
+    }
+
+    @Test
+    void getFilteredTasksFiltersByStatusAndPriority() {
+        TaskResponse todoHighTask = taskService.createTask(createTaskRequest("Todo high task"));
+        TaskResponse doneHighTask = taskService.createTask(createTaskRequest("Done high task"));
+        TaskResponse todoLowTask = taskService.createTask(createTaskRequest("Todo low task"));
+        changePriority(todoHighTask.getId(), TaskPriority.HIGH);
+        changePriority(doneHighTask.getId(), TaskPriority.HIGH);
+        changeStatus(doneHighTask.getId(), TaskStatus.DONE);
+        changePriority(todoLowTask.getId(), TaskPriority.LOW);
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setStatus(TaskStatus.TODO);
+        request.setPriority(TaskPriority.HIGH);
+
+        assertThat(taskService.getFilteredTasks(request))
+                .extracting(TaskResponse::getId)
+                .containsExactly(todoHighTask.getId());
+    }
+
     private CreateTaskRequest createTaskRequest(String title) {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
         request.setDescription("Original description");
         return request;
+    }
+
+    private void changeStatus(Long taskId, TaskStatus status) {
+        ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
+        request.setStatus(status);
+        taskService.changeTaskStatus(taskId, request);
+    }
+
+    private void changePriority(Long taskId, TaskPriority priority) {
+        ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
+        request.setPriority(priority);
+        taskService.changeTaskPriority(taskId, request);
     }
 }

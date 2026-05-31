@@ -4,7 +4,6 @@ import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,11 +29,6 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping
-    public ResponseEntity<List<TaskResponse>> getAllTasks() {
-        List<TaskResponse> response = taskService.getAllTasks();
-        return ResponseEntity.ok(response);
-    }
 
     @GetMapping("/deleted")
     public ResponseEntity<List<TaskResponse>> getDeletedTasks() {

@@ -209,6 +209,55 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.priority").value("URGENT"));
     }
 
+    @Test
+    void getTasksFiltersByStatus() throws Exception {
+        TaskResponse todoTask = createTask("Todo task");
+        TaskResponse doneTask = createTask("Done task");
+        changeStatus(doneTask.getId(), TaskStatus.DONE);
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("status", "TODO"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(todoTask.getId()));
+    }
+
+    @Test
+    void getTasksFiltersByPriority() throws Exception {
+        TaskResponse mediumTask = createTask("Medium task");
+        TaskResponse urgentTask = createTask("Urgent task");
+        changePriority(urgentTask.getId(), TaskPriority.URGENT);
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("priority", "URGENT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(urgentTask.getId()));
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("priority", "MEDIUM"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(mediumTask.getId()));
+    }
+
+    @Test
+    void getTasksFiltersByStatusAndPriority() throws Exception {
+        TaskResponse todoHighTask = createTask("Todo high task");
+        TaskResponse doneHighTask = createTask("Done high task");
+        TaskResponse todoLowTask = createTask("Todo low task");
+        changePriority(todoHighTask.getId(), TaskPriority.HIGH);
+        changePriority(doneHighTask.getId(), TaskPriority.HIGH);
+        changeStatus(doneHighTask.getId(), TaskStatus.DONE);
+        changePriority(todoLowTask.getId(), TaskPriority.LOW);
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("status", "TODO")
+                        .param("priority", "HIGH"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(todoHighTask.getId()));
+    }
+
     private TaskResponse createTask(String title) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -226,5 +275,23 @@ class TaskControllerTest {
         request.setTitle(title);
         request.setDescription("Original description");
         return request;
+    }
+
+    private void changeStatus(Long taskId, TaskStatus taskStatus) throws Exception {
+        ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
+        request.setStatus(taskStatus);
+        mockMvc.perform(post("/api/tasks/{id}/status", taskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    private void changePriority(Long taskId, TaskPriority priority) throws Exception {
+        ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
+        request.setPriority(priority);
+        mockMvc.perform(post("/api/tasks/{id}/priority", taskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
     }
 }
