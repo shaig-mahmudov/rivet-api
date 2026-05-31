@@ -101,4 +101,12 @@ public class TaskController {
 
     }
 
+    @GetMapping
+    public ResponseEntity<List<TaskResponse>> getFilteredTasks(
+            @ModelAttribute FilterTaskRequest request
+    ) {
+        List<TaskResponse> response = taskService.getFilteredTasks(request);
+        return ResponseEntity.ok(response);
+    }
+
 }
