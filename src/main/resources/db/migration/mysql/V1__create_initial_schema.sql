@@ -1,0 +1,54 @@
+CREATE TABLE users (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
+    deleted_at DATETIME(6) NULL,
+    username VARCHAR(255) NULL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NULL,
+    role VARCHAR(50) NULL,
+    CONSTRAINT pk_users PRIMARY KEY (id),
+    CONSTRAINT uk_users_email UNIQUE (email)
+);
+
+CREATE TABLE projects (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
+    deleted_at DATETIME(6) NULL,
+    name VARCHAR(255) NULL,
+    description VARCHAR(255) NULL,
+    owner_id BIGINT NULL,
+    CONSTRAINT pk_projects PRIMARY KEY (id),
+    CONSTRAINT fk_projects_owner
+        FOREIGN KEY (owner_id) REFERENCES users (id)
+);
+
+CREATE TABLE tasks (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
+    deleted_at DATETIME(6) NULL,
+    title VARCHAR(255) NOT NULL,
+    description VARCHAR(255) NULL,
+    priority VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    due_date DATE NULL,
+    project_id BIGINT NULL,
+    assignee_id BIGINT NULL,
+    CONSTRAINT pk_tasks PRIMARY KEY (id),
+    CONSTRAINT fk_tasks_project
+        FOREIGN KEY (project_id) REFERENCES projects (id),
+    CONSTRAINT fk_tasks_assignee
+        FOREIGN KEY (assignee_id) REFERENCES users (id)
+);
+
+CREATE INDEX idx_users_deleted_at ON users (deleted_at);
+CREATE INDEX idx_projects_deleted_at ON projects (deleted_at);
+CREATE INDEX idx_projects_owner_id ON projects (owner_id);
+CREATE INDEX idx_tasks_deleted_at ON tasks (deleted_at);
+CREATE INDEX idx_tasks_project_id ON tasks (project_id);
+CREATE INDEX idx_tasks_assignee_id ON tasks (assignee_id);
+CREATE INDEX idx_tasks_status_deleted_at ON tasks (status, deleted_at);
+CREATE INDEX idx_tasks_priority_deleted_at ON tasks (priority, deleted_at);
+CREATE INDEX idx_tasks_status_priority_deleted_at ON tasks (status, priority, deleted_at);
