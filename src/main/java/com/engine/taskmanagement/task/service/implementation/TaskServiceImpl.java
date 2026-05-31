@@ -128,4 +128,27 @@ public class TaskServiceImpl implements TaskService {
         Task updatedTask = taskRepository.save(task);
         return taskMapper.toResponse(updatedTask);
     }
+
+    @Override
+    public List<TaskResponse> getFilteredTasks(FilterTaskRequest request) {
+        List<Task> tasks;
+
+        if (request.getStatus() != null && request.getPriority() != null) {
+            tasks = taskRepository.findByStatusAndPriorityAndDeletedAtIsNull(
+                    request.getStatus(),
+                    request.getPriority()
+            );
+        } else if (request.getPriority() != null) {
+            tasks = taskRepository.findByPriorityAndDeletedAtIsNull(request.getPriority());
+        } else if (request.getStatus() != null) {
+            tasks = taskRepository.findByStatusAndDeletedAtIsNull(request.getStatus());
+        } else {
+            tasks = taskRepository.findAllByDeletedAtIsNull();
+        }
+
+        return tasks.stream().map(taskMapper::toResponse).toList();
+
+    }
+
+
 }
