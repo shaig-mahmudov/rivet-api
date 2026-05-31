@@ -4,11 +4,13 @@ import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -30,10 +32,12 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> getTasks(
-            @ModelAttribute FilterTaskRequest request
+    public ResponseEntity<Page<TaskResponse>> getTasks(
+            @ModelAttribute FilterTaskRequest request,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
     ) {
-        List<TaskResponse> response = taskService.getFilteredTasks(request);
+        Page<TaskResponse> response = taskService.getTasks(request, pageable);
         return ResponseEntity.ok(response);
     }
 
@@ -68,8 +72,11 @@ public class TaskController {
     }
 
     @GetMapping("/deleted")
-    public ResponseEntity<List<TaskResponse>> getDeletedTasks() {
-        List<TaskResponse> response = taskService.getDeletedTasks();
+    public ResponseEntity<Page<TaskResponse>> getDeletedTasks(
+            @PageableDefault(size = 10, sort = "deletedAt", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        Page<TaskResponse> response = taskService.getDeletedTasks(pageable);
         return ResponseEntity.ok(response);
     }
 

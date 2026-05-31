@@ -39,6 +39,7 @@ public class TaskMapper {
         response.setDueDate(task.getDueDate());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
+        response.setDeletedAt(task.getDeletedAt());
 
         if (task.getProject() != null) {
             response.setProjectId(task.getProject().getId());

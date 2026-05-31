@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
@@ -60,10 +61,10 @@ class TaskServiceImplTest {
 
         taskService.deleteTask(deletedTask.getId());
 
-        assertThat(taskService.getAllTasks())
+        assertThat(taskService.getAllTasks(Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(activeTask.getId());
-        assertThat(taskService.getDeletedTasks())
+        assertThat(taskService.getDeletedTasks(Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(deletedTask.getId());
     }
@@ -121,10 +122,10 @@ class TaskServiceImplTest {
         TaskResponse restored = taskService.restoreTask(task.getId());
 
         assertThat(restored.getId()).isEqualTo(task.getId());
-        assertThat(taskService.getAllTasks())
+        assertThat(taskService.getAllTasks(Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(task.getId());
-        assertThat(taskService.getDeletedTasks()).isEmpty();
+        assertThat(taskService.getDeletedTasks(Pageable.unpaged()).getContent()).isEmpty();
     }
 
     @Test
@@ -159,7 +160,7 @@ class TaskServiceImplTest {
     }
 
     @Test
-    void getFilteredTasksFiltersByStatusAndExcludesDeletedTasks() {
+    void getTasksFiltersByStatusAndExcludesDeletedTasks() {
         TaskResponse todoTask = taskService.createTask(createTaskRequest("Todo task"));
         TaskResponse doneTask = taskService.createTask(createTaskRequest("Done task"));
         TaskResponse deletedTodoTask = taskService.createTask(createTaskRequest("Deleted todo task"));
@@ -168,13 +169,13 @@ class TaskServiceImplTest {
         FilterTaskRequest request = new FilterTaskRequest();
         request.setStatus(TaskStatus.TODO);
 
-        assertThat(taskService.getFilteredTasks(request))
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(todoTask.getId());
     }
 
     @Test
-    void getFilteredTasksFiltersByPriorityAndExcludesDeletedTasks() {
+    void getTasksFiltersByPriorityAndExcludesDeletedTasks() {
         TaskResponse mediumTask = taskService.createTask(createTaskRequest("Medium task"));
         TaskResponse highTask = taskService.createTask(createTaskRequest("High task"));
         TaskResponse deletedHighTask = taskService.createTask(createTaskRequest("Deleted high task"));
@@ -184,16 +185,16 @@ class TaskServiceImplTest {
         FilterTaskRequest request = new FilterTaskRequest();
         request.setPriority(TaskPriority.HIGH);
 
-        assertThat(taskService.getFilteredTasks(request))
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(highTask.getId());
-        assertThat(taskService.getAllTasks())
+        assertThat(taskService.getAllTasks(Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .contains(mediumTask.getId());
     }
 
     @Test
-    void getFilteredTasksFiltersByStatusAndPriority() {
+    void getTasksFiltersByStatusAndPriority() {
         TaskResponse todoHighTask = taskService.createTask(createTaskRequest("Todo high task"));
         TaskResponse doneHighTask = taskService.createTask(createTaskRequest("Done high task"));
         TaskResponse todoLowTask = taskService.createTask(createTaskRequest("Todo low task"));
@@ -205,7 +206,7 @@ class TaskServiceImplTest {
         request.setStatus(TaskStatus.TODO);
         request.setPriority(TaskPriority.HIGH);
 
-        assertThat(taskService.getFilteredTasks(request))
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(todoHighTask.getId());
     }

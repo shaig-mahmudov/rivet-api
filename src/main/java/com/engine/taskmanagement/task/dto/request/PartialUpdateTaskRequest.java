@@ -10,6 +10,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 public class PartialUpdateTaskRequest {
+    private Long projectId;
     private String title;
     private String description;
     private TaskPriority priority;

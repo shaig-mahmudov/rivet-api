@@ -2,14 +2,14 @@ package com.engine.taskmanagement.task.service.abstraction;
 
 import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface TaskService {
 
     TaskResponse createTask(CreateTaskRequest request);
-    List<TaskResponse> getAllTasks();
-    List<TaskResponse> getDeletedTasks();
+    Page<TaskResponse> getAllTasks(Pageable pageable);
+    Page<TaskResponse> getDeletedTasks(Pageable pageable);
     TaskResponse getTaskById(Long id);
     TaskResponse updateTask(Long id, UpdateTaskRequest request);
     TaskResponse partialUpdateTask(Long id, PartialUpdateTaskRequest request);
@@ -18,5 +18,5 @@ public interface TaskService {
     TaskResponse restoreTask(Long id);
     TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request);
     TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request);
-    List<TaskResponse> getFilteredTasks(FilterTaskRequest request);
+    Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable);
 }

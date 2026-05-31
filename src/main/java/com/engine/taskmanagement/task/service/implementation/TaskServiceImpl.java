@@ -11,10 +11,10 @@ import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import com.engine.taskmanagement.task.specification.TaskSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class TaskServiceImpl implements TaskService {
@@ -46,19 +46,16 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<TaskResponse> getAllTasks() {
-        return taskRepository.findAllByDeletedAtIsNull()
-                .stream()
-                .map(taskMapper::toResponse)
-                .toList();
+    public Page<TaskResponse> getAllTasks(Pageable pageable) {
+        return taskRepository.findAllByDeletedAtIsNull(pageable)
+                .map(taskMapper::toResponse);
     }
 
     @Override
-    public List<TaskResponse> getDeletedTasks() {
-        return taskRepository.findAllByDeletedAtIsNotNull()
-                .stream()
-                .map(taskMapper::toResponse)
-                .toList();
+    public Page<TaskResponse> getDeletedTasks(Pageable pageable) {
+        return taskRepository.findAllByDeletedAtIsNotNull(pageable)
+                .map(taskMapper::toResponse);
+
     }
 
     @Override
@@ -75,7 +72,23 @@ public class TaskServiceImpl implements TaskService {
         Task currentTask = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
+        if (request.getProjectId() != null) {
+            Project project = projectRepository.findByIdAndDeletedAtIsNull(request.getProjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Active project not found"));
+
+            currentTask.setProject(project);
+        }
+
         taskMapper.updateEntity(currentTask, request);
+        Task updatedTask = taskRepository.save(currentTask);
+        return taskMapper.toResponse(updatedTask);
+    }
+
+    @Override
+    @Transactional
+    public TaskResponse partialUpdateTask(Long id, PartialUpdateTaskRequest request) {
+        Task currentTask = taskRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id:" + id));
 
         if (request.getProjectId() != null) {
             Project project = projectRepository.findByIdAndDeletedAtIsNull(request.getProjectId())
@@ -83,14 +96,6 @@ public class TaskServiceImpl implements TaskService {
 
             currentTask.setProject(project);
         }
-        Task updatedTask = taskRepository.save(currentTask);
-        return taskMapper.toResponse(updatedTask);
-    }
-
-    @Override
-    public TaskResponse partialUpdateTask(Long id, PartialUpdateTaskRequest request) {
-        Task currentTask = taskRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id:" + id));
         taskMapper.partialUpdateEntity(currentTask, request);
         Task updatedTask = taskRepository.save((currentTask));
         return taskMapper.toResponse(updatedTask);
@@ -151,14 +156,13 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<TaskResponse> getFilteredTasks(FilterTaskRequest request) {
-        List<Task> tasks = taskRepository.findAll(
-                TaskSpecification.filter(request)
+    public Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable) {
+        Page<Task> tasks = taskRepository.findAll(
+                TaskSpecification.filter(request),
+                pageable
         );
 
-        return tasks.stream()
-                .map(taskMapper::toResponse)
-                .toList();
+        return tasks.map(taskMapper::toResponse);
     }
 
 

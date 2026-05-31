@@ -83,9 +83,9 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/api/tasks"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(activeTask.getId()))
-                .andExpect(jsonPath("$[0].title").value("Active task"))
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.content[0].id").value(activeTask.getId()))
+                .andExpect(jsonPath("$.content[0].title").value("Active task"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -154,8 +154,9 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/api/tasks/deleted"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(task.getId()))
-                .andExpect(jsonPath("$[0].title").value("Delete me"));
+                .andExpect(jsonPath("$.content[0].id").value(task.getId()))
+                .andExpect(jsonPath("$.content[0].title").value("Delete me"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -170,7 +171,7 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/api/tasks"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(task.getId()));
+                .andExpect(jsonPath("$.content[0].id").value(task.getId()));
     }
 
     @Test
@@ -218,8 +219,8 @@ class TaskControllerTest {
         mockMvc.perform(get("/api/tasks")
                         .param("status", "TODO"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(todoTask.getId()));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(todoTask.getId()));
     }
 
     @Test
@@ -231,13 +232,13 @@ class TaskControllerTest {
         mockMvc.perform(get("/api/tasks")
                         .param("priority", "URGENT"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(urgentTask.getId()));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(urgentTask.getId()));
 
         mockMvc.perform(get("/api/tasks")
                         .param("priority", "MEDIUM"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(mediumTask.getId()));
+                .andExpect(jsonPath("$.content[0].id").value(mediumTask.getId()));
     }
 
     @Test
@@ -254,8 +255,8 @@ class TaskControllerTest {
                         .param("status", "TODO")
                         .param("priority", "HIGH"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(todoHighTask.getId()));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(todoHighTask.getId()));
     }
 
     private TaskResponse createTask(String title) throws Exception {
