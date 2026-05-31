@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Setter
 public class TaskResponse {
     private Long id;
+    private Long projectId;
     private String title;
     private String description;
     private TaskPriority priority;

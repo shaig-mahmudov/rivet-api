@@ -10,4 +10,5 @@ import lombok.Setter;
 public class FilterTaskRequest {
     private TaskStatus status;
     private TaskPriority priority;
+    private Long projectId;
 }

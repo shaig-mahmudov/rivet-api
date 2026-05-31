@@ -29,28 +29,18 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-
-    @GetMapping("/deleted")
-    public ResponseEntity<List<TaskResponse>> getDeletedTasks() {
-        List<TaskResponse> response = taskService.getDeletedTasks();
+    @GetMapping
+    public ResponseEntity<List<TaskResponse>> getTasks(
+            @ModelAttribute FilterTaskRequest request
+    ) {
+        List<TaskResponse> response = taskService.getFilteredTasks(request);
         return ResponseEntity.ok(response);
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<TaskResponse> getTaskById(@PathVariable Long id) {
         return ResponseEntity.ok(taskService.getTaskById(id));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
-        taskService.deleteTask(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @DeleteMapping("/{id}/hard")
-    public ResponseEntity<Void> hardDeleteTask(@PathVariable Long id) {
-        taskService.hardDeleteTask(id);
-        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
@@ -62,13 +52,6 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{id}/restore")
-    public ResponseEntity<TaskResponse> restoreTask(@PathVariable Long id) {
-        TaskResponse response = taskService.restoreTask(id);
-        return ResponseEntity.ok(response);
-
-    }
-
     @PatchMapping("/{id}")
     public ResponseEntity<TaskResponse> partialUpdateTask(
             @PathVariable Long id,
@@ -76,6 +59,31 @@ public class TaskController {
 
         TaskResponse response = taskService.partialUpdateTask(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
+        taskService.deleteTask(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/deleted")
+    public ResponseEntity<List<TaskResponse>> getDeletedTasks() {
+        List<TaskResponse> response = taskService.getDeletedTasks();
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/hard")
+    public ResponseEntity<Void> hardDeleteTask(@PathVariable Long id) {
+        taskService.hardDeleteTask(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<TaskResponse> restoreTask(@PathVariable Long id) {
+        TaskResponse response = taskService.restoreTask(id);
+        return ResponseEntity.ok(response);
+
     }
 
     @PostMapping("/{id}/status")
@@ -95,12 +103,6 @@ public class TaskController {
 
     }
 
-    @GetMapping
-    public ResponseEntity<List<TaskResponse>> getFilteredTasks(
-            @ModelAttribute FilterTaskRequest request
-    ) {
-        List<TaskResponse> response = taskService.getFilteredTasks(request);
-        return ResponseEntity.ok(response);
-    }
+
 
 }

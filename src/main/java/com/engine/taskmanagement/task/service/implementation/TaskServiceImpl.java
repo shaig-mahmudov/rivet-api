@@ -2,12 +2,15 @@ package com.engine.taskmanagement.task.service.implementation;
 
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
+import com.engine.taskmanagement.project.entity.Project;
+import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
+import com.engine.taskmanagement.task.specification.TaskSpecification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,17 +20,27 @@ import java.util.List;
 public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
+    private final ProjectRepository projectRepository;
     private final TaskMapper taskMapper;
 
 
-    public TaskServiceImpl(TaskRepository taskRepository, TaskMapper taskMapper) {
+    public TaskServiceImpl(TaskRepository taskRepository, ProjectRepository projectRepository, TaskMapper taskMapper) {
         this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
         this.taskMapper = taskMapper;
     }
 
     @Override
     public TaskResponse createTask(CreateTaskRequest request) {
         Task task = taskMapper.toEntity(request);
+
+        if (request.getProjectId() != null) {
+            Project project = projectRepository.findByIdAndDeletedAtIsNull(request.getProjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Active project not found"));
+
+            task.setProject(project);
+        }
+
         Task savedTask = taskRepository.save(task);
         return taskMapper.toResponse(savedTask);
     }
@@ -131,23 +144,13 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public List<TaskResponse> getFilteredTasks(FilterTaskRequest request) {
-        List<Task> tasks;
+        List<Task> tasks = taskRepository.findAll(
+                TaskSpecification.filter(request)
+        );
 
-        if (request.getStatus() != null && request.getPriority() != null) {
-            tasks = taskRepository.findByStatusAndPriorityAndDeletedAtIsNull(
-                    request.getStatus(),
-                    request.getPriority()
-            );
-        } else if (request.getPriority() != null) {
-            tasks = taskRepository.findByPriorityAndDeletedAtIsNull(request.getPriority());
-        } else if (request.getStatus() != null) {
-            tasks = taskRepository.findByStatusAndDeletedAtIsNull(request.getStatus());
-        } else {
-            tasks = taskRepository.findAllByDeletedAtIsNull();
-        }
-
-        return tasks.stream().map(taskMapper::toResponse).toList();
-
+        return tasks.stream()
+                .map(taskMapper::toResponse)
+                .toList();
     }
 
 
