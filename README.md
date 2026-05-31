@@ -2,27 +2,33 @@
 
 TaskManagement is a Spring Boot backend API for managing projects and tasks.
 
+The current MVP focus is project/task management. User and auth packages exist, but they are not ready yet.
+
 ## Stack
 
 - Java 21
-- Spring Boot
+- Spring Boot 4
 - Spring Web MVC
 - Spring Data JPA
 - Bean Validation
+- Flyway
 - MySQL for development
-- PostgreSQL profile for production
+- PostgreSQL for production
+- H2 for tests
 - Maven
 
 ## Current Features
 
-- Project CRUD basics
-- Task CRUD basics
-- Soft delete and restore for projects and tasks
-- Hard delete endpoints for local/prototype use
-- Task status update
-- Task priority update
-- Validation error handling
+- Project create, list, update, soft delete, hard delete, restore
+- Task create, list, get by id, update, partial update, soft delete, hard delete, restore
+- Task status and priority update endpoints
+- Task filtering by status, priority, and project id
+- Task pagination and sorting
+- Assign tasks to projects with `projectId`
 - Environment-based database configuration
+- Flyway migrations for MySQL and PostgreSQL
+- H2 test profile
+- Service and controller tests for projects and tasks
 
 ## Setup
 
@@ -36,7 +42,7 @@ DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```
 
-Make sure the MySQL database exists:
+Create the MySQL database before running the app:
 
 ```sql
 CREATE DATABASE task_management;
@@ -48,13 +54,13 @@ CREATE DATABASE task_management;
 mvn spring-boot:run
 ```
 
-The API runs on:
+API:
 
 ```text
 http://localhost:8080
 ```
 
-Swagger UI should be available at:
+Swagger UI:
 
 ```text
 http://localhost:8080/swagger-ui/index.html
@@ -65,6 +71,8 @@ http://localhost:8080/swagger-ui/index.html
 ```bash
 mvn test
 ```
+
+Tests use the `test` profile with H2.
 
 ## Main Endpoints
 
@@ -77,6 +85,15 @@ PUT    /api/projects/{id}
 DELETE /api/projects/{id}
 DELETE /api/projects/{id}/hard
 POST   /api/projects/{id}/restore
+```
+
+Create project:
+
+```json
+{
+  "name": "MVP",
+  "description": "First prototype"
+}
 ```
 
 ### Tasks
@@ -95,9 +112,56 @@ POST   /api/tasks/{id}/status
 POST   /api/tasks/{id}/priority
 ```
 
+Create task:
+
+```json
+{
+  "projectId": 1,
+  "title": "Write MVP tests",
+  "description": "Cover task and project flows",
+  "priority": "HIGH",
+  "status": "TODO",
+  "dueDate": "2026-06-10"
+}
+```
+
+Minimal task:
+
+```json
+{
+  "title": "Create prototype"
+}
+```
+
+Filter and paginate tasks:
+
+```text
+GET /api/tasks?status=TODO
+GET /api/tasks?priority=HIGH
+GET /api/tasks?projectId=1
+GET /api/tasks?status=TODO&priority=HIGH&page=0&size=10&sort=createdAt,desc
+```
+
+Change status:
+
+```json
+{
+  "status": "DONE"
+}
+```
+
+Change priority:
+
+```json
+{
+  "priority": "URGENT"
+}
+```
+
 ## Notes
 
-- The first MVP is focused on task and project management.
-- User and auth packages exist but are not finished yet.
-- Hard delete endpoints should be protected or removed before a real production release.
-- Keep secrets in `.env` or environment variables, not in committed files.
+- Keep secrets in `.env` or environment variables.
+- Dev profile uses MySQL migrations.
+- Prod profile uses PostgreSQL migrations.
+- Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
+- Next recommended feature: task search and due date filtering.

@@ -4,104 +4,88 @@ Generated: 2026-05-31
 
 ## Current Status
 
-The project is close to a task/project CRUD MVP.
+The project is now a working task/project MVP candidate.
 
 Done:
 
-- [x] `mvn test`
-- [x] `mvn spring-boot:run`
+- [x] Environment-based config with `.env`
+- [x] MySQL development profile
+- [x] PostgreSQL production profile
 - [x] H2 test profile
-- [x] Task service tests
+- [x] Flyway migrations for MySQL and PostgreSQL
+- [x] Project CRUD basics
+- [x] Task CRUD basics
+- [x] Soft delete and restore
+- [x] Task status and priority endpoints
+- [x] Assign tasks to projects with `projectId`
+- [x] Filter tasks by status
+- [x] Filter tasks by priority
+- [x] Filter tasks by project id
+- [x] Pagination and sorting for task list
 - [x] Project service tests
-- [x] Task controller tests
+- [x] Task service tests
 - [x] Project controller tests
-- [x] Flyway dependencies
-- [x] MySQL migration
-- [x] PostgreSQL migration
-- [x] Task filtering by status
-- [x] Task filtering by priority
-- [x] Fixed duplicate `GET /api/tasks` mapping
+- [x] Task controller tests
 
-## Do Next
+## Do First
 
-### 1. Test The Current API Manually
-
+- [ ] Run `mvn test` and make sure all tests are green.
+- [ ] Run `mvn spring-boot:run`.
+- [ ] Open Swagger UI and test the main flows manually.
 - [ ] Create project.
-- [ ] List projects.
-- [ ] Update project.
-- [ ] Soft delete project.
-- [ ] Restore project.
-- [ ] Create task with only title.
-- [ ] Create task with status, priority, and due date.
-- [ ] List active tasks.
-- [ ] Filter tasks by status.
-- [ ] Filter tasks by priority.
-- [ ] Filter tasks by status and priority.
-- [ ] Get task by id.
-- [ ] Full update task.
-- [ ] Partial update task.
-- [ ] Change task status.
-- [ ] Change task priority.
-- [ ] Soft delete task.
-- [ ] List deleted tasks.
-- [ ] Restore task.
+- [ ] Create task with `projectId`.
+- [ ] List tasks with pagination.
+- [ ] Filter tasks by `status`.
+- [ ] Filter tasks by `priority`.
+- [ ] Filter tasks by `projectId`.
+- [ ] Soft delete and restore task.
+- [ ] Soft delete and restore project.
 
-### 2. Decide Hard Delete Policy
+## Fix Before More Big Features
 
-- [ ] Keep hard delete only if this is a private/local prototype.
-- [ ] Remove hard delete endpoints if the API will be shared.
-- [ ] Later, re-add hard delete as admin-only after auth exists.
-
-### 3. Add Filter Tests
-
-- [x] Task service test for status filter.
-- [x] Task service test for priority filter.
-- [x] Task service test for status + priority filter.
-- [x] Task controller test for `GET /api/tasks?status=TODO`.
-- [x] Task controller test for `GET /api/tasks?priority=HIGH`.
-- [x] Task controller test for `GET /api/tasks?status=TODO&priority=HIGH`.
-
-### 4. Docs Later Today
-
-- [ ] Add project request examples to `README.md`.
-- [ ] Add task request examples to `README.md`.
-- [ ] Add filter endpoint examples to `README.md`.
-- [ ] Add Flyway notes to `README.md`.
+- [ ] Decide hard delete policy before sharing the API.
+- [ ] Protect or remove hard delete endpoints before production.
+- [ ] Keep user/auth code out of MVP docs until it is implemented.
+- [ ] Decide whether project list also needs pagination now or later.
+- [ ] Align task description length between validation and database schema.
 
 ## Best Next Feature
 
-Best next feature for the current state: **assign tasks to projects**.
+Best next feature: **task search and due date filtering**.
 
 Why:
 
-- Projects and tasks already exist.
-- The entity relationship already exists: `Task.project`.
-- It makes the API feel like a real task management app.
-- It is smaller and safer than starting auth.
+- It improves the existing task list immediately.
+- It builds on the current filter specification.
+- It is smaller than auth and safer for the MVP.
+- It makes the API more useful without changing the project structure much.
 
 Suggested scope:
 
-- [ ] Add `projectId` to `CreateTaskRequest`.
-- [ ] Add optional `projectId` to `UpdateTaskRequest` or partial update.
-- [ ] Validate that project exists and is not deleted.
-- [ ] Save the project relation on the task.
-- [ ] Add `projectId` to `TaskResponse`.
-- [ ] Add tests for creating a task inside a project.
+- [ ] Add `search` or `title` to `FilterTaskRequest`.
+- [ ] Search task title with case-insensitive matching.
+- [ ] Add `dueDateFrom` to `FilterTaskRequest`.
+- [ ] Add `dueDateTo` to `FilterTaskRequest`.
+- [ ] Update `TaskSpecification`.
+- [ ] Add service tests for search and due date filters.
+- [ ] Add controller tests for search and due date filters.
+- [ ] Add README examples.
 
-## Later
+## After That
 
-- [ ] Task title search.
-- [ ] Pagination and sorting.
-- [ ] User CRUD.
-- [ ] Register/login.
-- [ ] Password hashing.
-- [ ] Authorization.
-- [ ] Database migration for new fields if model changes.
+- [ ] Add `GET /api/projects/{id}/tasks`.
+- [ ] Add pagination to project list if needed.
+- [ ] Improve validation error response details.
+- [ ] Add Swagger examples or descriptions.
+- [ ] Add basic user CRUD.
+- [ ] Add register/login.
+- [ ] Add password hashing.
+- [ ] Add authorization.
 
 ## Not For First MVP
 
-- Frontend.
-- Comments.
-- Dashboard.
-- Notifications.
-- Team/workspace features.
+- Frontend
+- Comments
+- Notifications
+- Dashboard
+- Team/workspace features

@@ -1,23 +1,22 @@
 # TaskManagement Project Report
 
-Generated: 2026-05-30
+Generated: 2026-05-31
 
 ## Summary
 
-TaskManagement is now close to a working MVP backend for projects and tasks. The project has enough API surface for manual CRUD testing and simple demos.
+TaskManagement is now close to a usable backend MVP for projects and tasks. The strongest part of the project is the task/project API with soft delete, restore, filtering, pagination, Flyway migrations, and tests.
 
 ## What Exists
 
 - Spring Boot backend with Java 21.
-- Maven commands currently work:
-  - `mvn test`
-  - `mvn spring-boot:run`
+- Maven project structure.
 - Environment-based configuration with `.env`.
-- MySQL development profile.
-- PostgreSQL production profile.
-- Common base entity with auditing, soft delete, and restore.
+- MySQL profile for development.
+- PostgreSQL profile for production.
+- H2 profile for tests.
+- Flyway migrations for MySQL and PostgreSQL.
+- Base entity with `createdAt`, `updatedAt`, and `deletedAt`.
 - Global exception handling.
-- Validation handler for Spring validation errors.
 - Project API:
   - create
   - list active projects
@@ -37,58 +36,49 @@ TaskManagement is now close to a working MVP backend for projects and tasks. The
   - restore
   - change status
   - change priority
-- Simple project response DTO.
-- Task request/response DTOs.
+- Task filtering by status, priority, and project id.
+- Task pagination and sorting.
+- Task-project relation through `projectId`.
+- Service and controller tests for project/task flows.
 - User/auth package structure.
 
 ## What Is Not Finished
 
 - User API is not ready.
-- Auth/login/register are not implemented.
+- Auth/register/login are not implemented.
 - Password hashing is not implemented.
-- No real authorization yet.
-- No pagination or sorting.
-- No task filtering/search endpoints yet.
-- No database migrations.
-- Test coverage is still minimal.
+- Authorization is not implemented.
+- Project list is not paginated yet.
+- Task search is not implemented yet.
+- Due date range filtering is not implemented yet.
+- Hard delete endpoints are not protected.
 
 ## Pluses
 
-- Task/project MVP is nearly usable.
-- API layers are organized by domain.
-- DTOs are used instead of returning entities directly.
-- Soft delete/restore is already part of the model.
-- Config no longer depends on hardcoded secrets.
-- Validation errors now return bad request responses.
+- Good MVP direction: project/task features are the main focus.
+- Domain packages are separated clearly.
+- DTOs are used instead of exposing entities directly.
+- Soft delete and restore behavior is already part of the model.
+- Database config no longer uses committed secrets.
+- Flyway is ready for both MySQL and PostgreSQL.
+- Task filtering and pagination make the API more realistic.
+- Tests now cover the important task/project service and controller flows.
 
 ## Minuses And Risks
 
 - Hard delete endpoints are public.
-- User/auth code is incomplete.
-- Manual endpoint testing is still needed.
-- Database schema relies on Hibernate update mode in development.
-- README and docs are still basic, though improved.
-
-## MVP Readiness
-
-For a task/project-only MVP, the project is close.
-
-Before calling it finished:
-
-1. Run `mvn test`.
-2. Run `mvn spring-boot:run`.
-3. Test all project endpoints.
-4. Test all task endpoints.
-5. Decide whether hard delete should stay in the demo.
-
-Users and auth should wait unless the MVP specifically needs login.
+- User/auth code is incomplete and should not be treated as ready.
+- Task description validation allows 500 characters, while the migration currently uses `VARCHAR(255)`.
+- Existing local databases created before Flyway may need reset or baseline.
+- Project list may need pagination later if it grows.
+- Manual Swagger/API testing is still needed after every endpoint change.
 
 ## Recommended Next Steps
 
-1. Manually test project flow.
-2. Manually test task flow.
-3. Remove or protect hard delete endpoints before sharing the API.
-4. Add README examples for request bodies.
-5. Add basic service/controller tests.
-6. Add task filtering and pagination after CRUD is stable.
-7. Add user/auth later.
+1. Run `mvn test` and keep tests green.
+2. Run the app and manually test project/task flows in Swagger.
+3. Add task search.
+4. Add due date range filters.
+5. Add tests for the new filters.
+6. Decide hard delete policy.
+7. Start user/auth only after the task/project MVP is stable.
