@@ -1,34 +1,34 @@
 package com.engine.taskmanagement.user.mapper;
 
+import com.engine.taskmanagement.user.dto.request.ChangeRoleRequest;
+import com.engine.taskmanagement.user.dto.request.ChangeUsernameRequest;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
-import com.engine.taskmanagement.user.dto.request.UpdateUserRequest;
 import com.engine.taskmanagement.user.dto.response.UserResponse;
 import com.engine.taskmanagement.user.entity.User;
-import org.springframework.stereotype.Component;
-import java.time.LocalDateTime;
+import org.mapstruct.BeanMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
-@Component
-public class UserMapper {
-    public User toEntity(CreateUserRequest request) {
-        User user = new User();
 
-        user.setUsername(request.getUsername());
-        user.setRole(request.getRole());
-        user.setEmail(request.getEmail());
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+@Mapper(componentModel = "spring")
+public interface UserMapper {
 
-        return user;
-    }
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "projects", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    User toEntity(CreateUserRequest request);
 
-    public UserResponse toResponse(User user) {
-        UserResponse response = new UserResponse();
+    UserResponse toResponse(User user);
 
-        response.setId(user.getId());
-        response.setUsername(user.getUsername());
-        response.setRole(user.getRole());
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "username", source = "username")
+    void changeUsername(ChangeUsernameRequest request, @MappingTarget User user);
 
-        return response;
-    }
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "role", source = "role")
+    void changeRole(ChangeRoleRequest request, @MappingTarget User user);
 
 }
