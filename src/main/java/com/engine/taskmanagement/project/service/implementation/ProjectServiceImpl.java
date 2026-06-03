@@ -43,7 +43,7 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectResponse updateProject(Long id, UpdateProjectRequest request) {
         Project currentProject = projectRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));;
-        projectMapper.updateEntity(currentProject, request);
+        projectMapper.updateEntity(request, currentProject);
         Project updatedProject = projectRepository.save(currentProject);
         return projectMapper.toResponse(updatedProject);
     }

@@ -5,7 +5,7 @@ import lombok.Setter;
 
 @Setter
 @Getter
-public class PartialUpdateRequest {
+public class PartialUpdateProjectRequest {
     private String name;
     private String description;
 }

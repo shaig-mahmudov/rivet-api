@@ -1,40 +1,39 @@
 package com.engine.taskmanagement.project.mapper;
 
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
+import com.engine.taskmanagement.project.dto.request.PartialUpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.entity.Project;
-import org.springframework.stereotype.Component;
+import org.mapstruct.*;
 
-import java.time.LocalDateTime;
+@Mapper(componentModel = "spring")
+public interface ProjectMapper {
 
-@Component
-public class ProjectMapper {
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "tasks", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    Project toEntity(CreateProjectRequest request);
 
-    public Project toEntity(CreateProjectRequest request) {
-        Project project = new Project();
+    ProjectResponse toResponse(Project project);
 
-        project.setName(request.getName());
-        project.setDescription(request.getDescription());
-        project.setCreatedAt(LocalDateTime.now());
-        project.setUpdatedAt(LocalDateTime.now());
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "tasks", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    void updateEntity(UpdateProjectRequest request, @MappingTarget Project project);
 
-        return project;
-    }
-
-    public ProjectResponse toResponse(Project project) {
-        ProjectResponse response = new ProjectResponse();
-
-        response.setId(project.getId());
-        response.setName(project.getName());
-        response.setDescription(project.getDescription());
-
-        return response;
-    }
-
-    public void updateEntity(Project project, UpdateProjectRequest request) {
-        project.setName(request.getName());
-        project.setDescription(request.getDescription());
-        project.setUpdatedAt(LocalDateTime.now());
-    }
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "tasks", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    void partialUpdateEntity(PartialUpdateProjectRequest request, @MappingTarget Project project);
 }
