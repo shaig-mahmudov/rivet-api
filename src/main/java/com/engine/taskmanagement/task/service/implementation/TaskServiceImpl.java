@@ -79,7 +79,7 @@ public class TaskServiceImpl implements TaskService {
             currentTask.setProject(project);
         }
 
-        taskMapper.updateEntity(currentTask, request);
+        taskMapper.updateEntity(request, currentTask);
         Task updatedTask = taskRepository.save(currentTask);
         return taskMapper.toResponse(updatedTask);
     }
@@ -96,7 +96,7 @@ public class TaskServiceImpl implements TaskService {
 
             currentTask.setProject(project);
         }
-        taskMapper.partialUpdateEntity(currentTask, request);
+        taskMapper.partialUpdateEntity(request, currentTask);
         Task updatedTask = taskRepository.save((currentTask));
         return taskMapper.toResponse(updatedTask);
     }
@@ -139,7 +139,7 @@ public class TaskServiceImpl implements TaskService {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
-        taskMapper.changeTaskStatus(task, request);
+        taskMapper.changeTaskStatus(request, task);
         Task updatedTask = taskRepository.save(task);
         return taskMapper.toResponse(updatedTask);
     }
@@ -150,7 +150,7 @@ public class TaskServiceImpl implements TaskService {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
-        taskMapper.changeTaskPriority(task, request);
+        taskMapper.changeTaskPriority(request, task);
         Task updatedTask = taskRepository.save(task);
         return taskMapper.toResponse(updatedTask);
     }

@@ -3,91 +3,46 @@ package com.engine.taskmanagement.task.mapper;
 import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
-import org.springframework.stereotype.Component;
+import org.mapstruct.*;
 
-import java.time.LocalDateTime;
+@Mapper(componentModel = "spring")
+public interface TaskMapper {
 
-@Component
-public class TaskMapper {
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "project", ignore = true)
+    @Mapping(target = "assignee", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "priority", source = "priority", defaultValue = "MEDIUM")
+    @Mapping(target = "status", source = "status", defaultValue = "TODO")
+    Task toEntity(CreateTaskRequest request);
 
-    public Task toEntity(CreateTaskRequest request) {
-        Task task = new Task();
+    @Mapping(target = "projectId", source = "project.id")
+    TaskResponse toResponse(Task task);
 
-        task.setTitle(request.getTitle());
-        task.setDescription(request.getDescription());
-        if (request.getPriority() != null) {
-            task.setPriority(request.getPriority());
-        }
-        if (request.getStatus() != null) {
-            task.setStatus(request.getStatus());
-        }
-        task.setDueDate(request.getDueDate());
-        task.setCreatedAt(LocalDateTime.now());
-        task.setUpdatedAt(LocalDateTime.now());
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "project", ignore = true)
+    @Mapping(target = "assignee", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    void updateEntity(UpdateTaskRequest request, @MappingTarget Task task);
 
-        return task;
-    }
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "project", ignore = true)
+    @Mapping(target = "assignee", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    void partialUpdateEntity(PartialUpdateTaskRequest request, @MappingTarget Task task);
 
-    public TaskResponse toResponse(Task task) {
-        TaskResponse response = new TaskResponse();
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "status", source = "status")
+    void changeTaskStatus(ChangeTaskStatusRequest request, @MappingTarget Task task);
 
-        response.setId(task.getId());
-        response.setTitle(task.getTitle());
-        response.setDescription(task.getDescription());
-        response.setStatus(task.getStatus());
-        response.setPriority(task.getPriority());
-        response.setDueDate(task.getDueDate());
-        response.setCreatedAt(task.getCreatedAt());
-        response.setUpdatedAt(task.getUpdatedAt());
-        response.setDeletedAt(task.getDeletedAt());
-
-        if (task.getProject() != null) {
-            response.setProjectId(task.getProject().getId());
-        }
-
-        return response;
-    }
-
-    public void updateEntity(Task task, UpdateTaskRequest request) {
-        task.setTitle(request.getTitle());
-        task.setDescription(request.getDescription());
-        task.setStatus(request.getStatus());
-        task.setPriority(request.getPriority());
-        task.setDueDate(request.getDueDate());
-        task.setUpdatedAt(LocalDateTime.now());
-    }
-
-    public void partialUpdateEntity(Task task, PartialUpdateTaskRequest request) {
-        if (request.getTitle() != null) {
-            task.setTitle(request.getTitle());
-        }
-
-        if (request.getDescription() != null) {
-            task.setDescription(request.getDescription());
-        }
-
-        if (request.getPriority() != null) {
-            task.setPriority(request.getPriority());
-        }
-
-        if (request.getStatus() != null) {
-            task.setStatus(request.getStatus());
-        }
-
-        if (request.getDueDate() != null) {
-            task.setDueDate(request.getDueDate());
-        }
-
-        task.setUpdatedAt(LocalDateTime.now());
-    }
-
-    public void changeTaskStatus(Task task, ChangeTaskStatusRequest request) {
-        task.setStatus(request.getStatus());
-        task.setUpdatedAt(LocalDateTime.now());
-    }
-
-    public void changeTaskPriority(Task task, ChangeTaskPriorityRequest request) {
-        task.setPriority(request.getPriority());
-        task.setUpdatedAt(LocalDateTime.now());
-    }
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(target = "priority", source = "priority")
+    void changeTaskPriority(ChangeTaskPriorityRequest request, @MappingTarget Task task);
 }
