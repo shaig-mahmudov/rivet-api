@@ -211,10 +211,93 @@ class TaskServiceImplTest {
                 .containsExactly(todoHighTask.getId());
     }
 
+    @Test
+    void getTasksSearchesTitleCaseInsensitivelyAndExcludesDeletedTasks() {
+        TaskResponse invoiceTask = taskService.createTask(createTaskRequest("Review invoice"));
+        taskService.createTask(createTaskRequest("Plan roadmap"));
+        TaskResponse deletedInvoiceTask = taskService.createTask(createTaskRequest("Invoice archive"));
+        taskService.deleteTask(deletedInvoiceTask.getId());
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setSearch("INVOICE");
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(invoiceTask.getId());
+    }
+
+    @Test
+    void getTasksSearchesDescriptionAndCombinesWithPriority() {
+        TaskResponse highPriorityTask = taskService.createTask(
+                createTaskRequest("Backend cleanup", "Prepare release notes", null)
+        );
+        TaskResponse lowPriorityTask = taskService.createTask(
+                createTaskRequest("Frontend cleanup", "Prepare release notes", null)
+        );
+        taskService.createTask(createTaskRequest("Meeting notes", "Plan next sprint", null));
+        changePriority(highPriorityTask.getId(), TaskPriority.HIGH);
+        changePriority(lowPriorityTask.getId(), TaskPriority.LOW);
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setSearch("release");
+        request.setPriority(TaskPriority.HIGH);
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(highPriorityTask.getId());
+    }
+
+    @Test
+    void getTasksFiltersByDueDateRange() {
+        TaskResponse firstJuneTask = taskService.createTask(
+                createTaskRequest("First June task", "Original description", LocalDate.of(2026, 6, 5))
+        );
+        TaskResponse secondJuneTask = taskService.createTask(
+                createTaskRequest("Second June task", "Original description", LocalDate.of(2026, 6, 20))
+        );
+        taskService.createTask(
+                createTaskRequest("July task", "Original description", LocalDate.of(2026, 7, 1))
+        );
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setDueDateFrom(LocalDate.of(2026, 6, 1));
+        request.setDueDateTo(LocalDate.of(2026, 6, 30));
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactlyInAnyOrder(firstJuneTask.getId(), secondJuneTask.getId());
+    }
+
+    @Test
+    void getTasksFiltersFromTodayUntilDueDate() {
+        LocalDate today = LocalDate.now();
+        taskService.createTask(
+                createTaskRequest("Past task", "Original description", today.minusDays(1))
+        );
+        TaskResponse todayTask = taskService.createTask(
+                createTaskRequest("Today task", "Original description", today)
+        );
+        TaskResponse upcomingTask = taskService.createTask(
+                createTaskRequest("Upcoming task", "Original description", today.plusDays(2))
+        );
+        taskService.createTask(
+                createTaskRequest("Too far task", "Original description", today.plusDays(5))
+        );
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setDueFromToday(true);
+        request.setDueDateTo(today.plusDays(3));
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactlyInAnyOrder(todayTask.getId(), upcomingTask.getId());
+    }
+
     private CreateTaskRequest createTaskRequest(String title) {
+        return createTaskRequest(title, "Original description", null);
+    }
+
+    private CreateTaskRequest createTaskRequest(String title, String description, LocalDate dueDate) {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
-        request.setDescription("Original description");
+        request.setDescription(description);
+        request.setDueDate(dueDate);
         return request;
     }
 

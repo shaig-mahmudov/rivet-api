@@ -22,7 +22,8 @@ The current MVP focus is project/task management. User and auth packages exist, 
 - Project create, list, update, soft delete, hard delete, restore
 - Task create, list, get by id, update, partial update, soft delete, hard delete, restore
 - Task status and priority update endpoints
-- Task filtering by status, priority, and project id
+- Task search by title and description
+- Task filtering by status, priority, project id, and due date
 - Task pagination and sorting
 - Assign tasks to projects with `projectId`
 - Environment-based database configuration
@@ -136,10 +137,14 @@ Minimal task:
 Filter and paginate tasks:
 
 ```text
+GET /api/tasks?search=invoice
 GET /api/tasks?status=TODO
 GET /api/tasks?priority=HIGH
 GET /api/tasks?projectId=1
 GET /api/tasks?status=TODO&priority=HIGH&page=0&size=10&sort=createdAt,desc
+GET /api/tasks?dueDateFrom=2026-06-01&dueDateTo=2026-06-30
+GET /api/tasks?dueFromToday=true&dueDateTo=2026-06-30
+GET /api/tasks?search=invoice&projectId=1&status=TODO
 ```
 
 Change status:
@@ -164,4 +169,4 @@ Change priority:
 - Dev profile uses MySQL migrations.
 - Prod profile uses PostgreSQL migrations.
 - Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
-- Next recommended feature: task search and due date filtering.
+- Next recommended feature: `GET /api/projects/{id}/tasks`.

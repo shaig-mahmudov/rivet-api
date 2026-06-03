@@ -4,9 +4,9 @@ Generated: 2026-06-03
 
 ## Summary
 
-TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is a solid task/project MVP candidate: core CRUD, soft delete/restore, task filtering, pagination, Flyway migrations, and service/controller tests are already in place.
+TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, search, filtering, pagination, Flyway migrations, and integration-style service/controller tests are in place.
 
-The best next move is to finish the task list experience before starting authentication. Specifically: add task text search, add tests and README examples for the due-date filters that already exist, and then manually verify the API in Swagger.
+The best next move is to connect projects and tasks more naturally with a project-specific task listing endpoint: `GET /api/projects/{id}/tasks`.
 
 ## Current Architecture
 
@@ -48,6 +48,7 @@ The best next move is to finish the task list experience before starting authent
   - change status
   - change priority
 - Task filtering by:
+  - search text
   - status
   - priority
   - project id
@@ -56,20 +57,25 @@ The best next move is to finish the task list experience before starting authent
   - due from today with an upper due date
 - Task pagination and sorting.
 - Optional task-to-project assignment through `projectId`.
-- Service and controller tests for important project/task flows.
+- Service and controller tests for project/task flows.
+- Search and due-date filter tests.
 - User/auth package placeholders and database tables.
+
+## Latest Verification
+
+- `mvn test` passed on 2026-06-03.
+- Test result: 52 tests, 0 failures, 0 errors, 0 skipped.
+- Test command used the cached Maven executable because `mvnw.cmd` currently fails in this environment before Maven starts.
 
 ## What Is Not Finished
 
-- Task text search is not implemented yet.
-- Due-date filters exist in code, but they are not covered by service/controller tests.
-- README does not show examples for due-date filtering yet.
+- `GET /api/projects/{id}/tasks` is not implemented yet.
 - User API is not implemented.
 - Register/login are not implemented.
 - Password hashing is not implemented.
 - Authorization is not implemented.
 - Project list is not paginated.
-- Hard delete endpoints are public.
+- Hard delete endpoints are intentionally still public for easier development.
 - Assignment to users is modeled in the database/entity, but no API flow uses it yet.
 
 ## Strengths
@@ -78,57 +84,69 @@ The best next move is to finish the task list experience before starting authent
 - Domain packages are easy to navigate.
 - DTOs prevent direct entity exposure.
 - Soft delete and restore are handled consistently in the main flows.
-- Task filtering already uses a scalable Specification-based approach.
+- Task filtering uses a scalable Specification-based approach.
+- Search combines cleanly with status, priority, project, and due-date filters.
 - Pagination and sorting are available for task lists.
 - Tests cover many service and controller behaviors.
 - Flyway support makes the database setup more production-like.
 
 ## Risks And Gaps
 
-- Hard delete endpoints should be protected, hidden, or removed before real deployment.
+- Hard delete should become admin-only before real deployment.
 - The user/auth packages currently look like future scaffolding, not usable features.
-- Task and project description validation allows 500 characters, but migrations use `VARCHAR(255)`.
+- Task description validation is now capped at 250 characters, which fits the `VARCHAR(255)` migration. Project description still has no explicit validation limit.
 - Project soft delete does not automatically soft delete child tasks. This is acceptable for now, but the expected product behavior should be decided.
 - Project restore does not need special handling yet, but task restore correctly blocks restore when its project is deleted.
 - Existing local databases created before Flyway may need reset or baseline.
+- Spring warns that returning `PageImpl` directly may produce unstable JSON structure. It is fine for the MVP, but a DTO page wrapper would be cleaner later.
 - Manual Swagger testing is still needed after endpoint changes.
 
 ## Recommended Next Feature
 
-Recommended next feature: task search plus due-date filter completion.
+Recommended next feature: project-specific task listing.
 
-This is better than starting auth immediately because it builds on the strongest part of the codebase: the task list API. It is small enough to finish cleanly, but useful enough to make the app feel more realistic.
+Suggested endpoint:
+
+```text
+GET /api/projects/{id}/tasks
+```
+
+Why this should come next:
+
+- It improves the project/task relationship that already exists in the database.
+- It is useful for any future frontend project detail page.
+- It reuses the task pagination/filtering model.
+- It is smaller than auth and keeps the MVP focused.
 
 Suggested scope:
 
-- Add a `search` field to `FilterTaskRequest`.
-- Match `search` against task title and optionally description.
-- Use case-insensitive matching.
-- Ignore blank search values.
-- Keep search combined with existing status, priority, project, and due-date filters.
-- Add service tests for search.
-- Add service tests for `dueDateFrom`, `dueDateTo`, and `dueFromToday`.
-- Add controller tests for query parameters.
-- Update README examples.
+- Return active tasks for one active project.
+- Support pagination and sorting.
+- Optionally support the same filters as `GET /api/tasks`.
+- Return `404` if the project does not exist or is soft deleted.
+- Add service tests.
+- Add controller tests.
+- Add README examples.
 
 ## How To Continue
 
 1. Keep tests green with `mvn test` before and after each feature.
-2. Finish one backend feature at a time.
-3. For the next feature, start in `FilterTaskRequest`, then update `TaskSpecification`, then tests, then README.
-4. After task search is done, add `GET /api/projects/{id}/tasks` so project pages can list their tasks directly.
-5. Then decide the hard delete policy before adding authentication.
-6. Build user/auth after the task/project API feels stable.
+2. Manually test search and due-date filters in Swagger.
+3. Add `GET /api/projects/{id}/tasks`.
+4. Add project list pagination.
+5. Add project description validation.
+6. Move hard delete behind admin authorization when auth is ready.
+7. Build user/auth after the task/project API feels stable.
 
 ## Suggested Roadmap
 
-1. Task search and due-date filter tests.
-2. README query examples and Swagger manual testing.
-3. Project task listing endpoint.
-4. Project list pagination.
-5. Validation/database length alignment.
-6. Hard delete policy.
-7. User registration and login.
-8. Password hashing and authorization.
+1. Project task listing endpoint.
+2. Project list pagination.
+3. Project description validation.
+4. Validation error response improvements.
+5. Swagger examples/descriptions.
+6. User registration and login.
+7. Password hashing and authorization.
+8. Admin-only hard delete.
 9. User assignment for tasks.
 10. Frontend or API client.

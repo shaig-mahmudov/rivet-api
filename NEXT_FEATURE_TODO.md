@@ -6,6 +6,10 @@ Generated: 2026-06-03
 
 The project is a working backend MVP candidate for project and task management.
 
+Latest verification:
+
+- [x] `mvn test` passed with 52 tests, 0 failures.
+
 Done:
 
 - [x] Environment-based config with `.env`
@@ -18,6 +22,7 @@ Done:
 - [x] Soft delete and restore
 - [x] Task status and priority endpoints
 - [x] Assign tasks to projects with `projectId`
+- [x] Filter tasks by search text
 - [x] Filter tasks by status
 - [x] Filter tasks by priority
 - [x] Filter tasks by project id
@@ -29,15 +34,17 @@ Done:
 - [x] Task service tests
 - [x] Project controller tests
 - [x] Task controller tests
+- [x] Search filter tests
+- [x] Due-date filter tests
 
-## Do First
+## Manual Check
 
-- [ ] Run `mvn test` and keep the suite green.
 - [ ] Run `mvn spring-boot:run`.
 - [ ] Open Swagger UI.
 - [ ] Create a project.
 - [ ] Create a task with `projectId`.
 - [ ] List tasks with pagination.
+- [ ] Filter tasks by `search`.
 - [ ] Filter tasks by `status`.
 - [ ] Filter tasks by `priority`.
 - [ ] Filter tasks by `projectId`.
@@ -49,92 +56,68 @@ Done:
 
 ## Best Next Feature
 
-Best next feature: task search.
+Best next feature: project-specific task listing.
+
+Suggested endpoint:
+
+```text
+GET /api/projects/{id}/tasks
+```
 
 Why:
 
-- It improves the most-used endpoint: `GET /api/tasks`.
-- It fits the existing `FilterTaskRequest` and `TaskSpecification` design.
-- It can be combined with existing filters, pagination, and sorting.
+- It makes the existing project/task relation more useful.
+- It is a natural endpoint for a future project detail page.
+- It can reuse pagination, sorting, and existing task filters.
 - It is smaller and safer than starting auth right now.
-- It gives good practice with dynamic JPA queries.
 
 Recommended behavior:
 
-- [ ] Add `search` to `FilterTaskRequest`.
-- [ ] Treat blank search as no search filter.
-- [ ] Search task title case-insensitively.
-- [ ] Also search description case-insensitively if you want broader search.
-- [ ] Keep deleted tasks excluded from normal search results.
-- [ ] Allow search to combine with `status`, `priority`, `projectId`, `dueDateFrom`, and `dueDateTo`.
+- [ ] Return only active tasks.
+- [ ] Return tasks only for the requested active project.
+- [ ] Return `404` when the project does not exist.
+- [ ] Return `404` when the project is soft deleted.
+- [ ] Support pagination and sorting.
+- [ ] Optionally support task filters: `search`, `status`, `priority`, `dueDateFrom`, `dueDateTo`, and `dueFromToday`.
 
 Suggested API examples:
 
 ```text
-GET /api/tasks?search=invoice
-GET /api/tasks?search=invoice&status=TODO
-GET /api/tasks?search=invoice&priority=HIGH&page=0&size=10&sort=createdAt,desc
-GET /api/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-06-30
+GET /api/projects/1/tasks
+GET /api/projects/1/tasks?page=0&size=10&sort=createdAt,desc
+GET /api/projects/1/tasks?status=TODO
+GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-06-30
 ```
 
 ## Implementation Checklist
 
-- [ ] Add `private String search;` to `FilterTaskRequest`.
-- [ ] In `TaskSpecification`, trim and check the search value.
-- [ ] Convert the search value to lowercase.
-- [ ] Use `criteriaBuilder.lower(root.get("title"))`.
-- [ ] Add a `LIKE` predicate with `%search%`.
-- [ ] Optionally add description search with `OR`.
-- [ ] Combine the search predicate with the existing `AND` predicates.
-- [ ] Add service tests for title search.
-- [ ] Add service tests for case-insensitive search.
-- [ ] Add service tests for search combined with status or priority.
-- [ ] Add service tests for `dueDateFrom` and `dueDateTo`.
-- [ ] Add service tests for `dueFromToday`.
-- [ ] Add controller tests for `search` query parameter.
-- [ ] Add controller tests for due-date query parameters.
-- [ ] Update README filter examples.
+- [ ] Decide whether the endpoint belongs in `ProjectController` or `TaskController`.
+- [ ] Add a service method for project task listing.
+- [ ] Verify the project exists with `findByIdAndDeletedAtIsNull`.
+- [ ] Reuse `FilterTaskRequest` for optional filters.
+- [ ] Force `projectId` from the path variable so clients cannot override it with a query parameter.
+- [ ] Return `Page<TaskResponse>`.
+- [ ] Add service test for active project tasks.
+- [ ] Add service test that excludes tasks from other projects.
+- [ ] Add service test for missing/deleted project.
+- [ ] Add controller test for `GET /api/projects/{id}/tasks`.
+- [ ] Add controller test with pagination/filter query params.
+- [ ] Update README endpoint examples.
 - [ ] Run `mvn test`.
 - [ ] Manually test in Swagger.
 
-## Code Hints
-
-Good starting files:
-
-- `src/main/java/com/engine/taskmanagement/task/dto/request/FilterTaskRequest.java`
-- `src/main/java/com/engine/taskmanagement/task/specification/TaskSpecification.java`
-- `src/test/java/com/engine/taskmanagement/task/service/implementation/TaskServiceImplTest.java`
-- `src/test/java/com/engine/taskmanagement/task/controller/TaskControllerTest.java`
-- `README.md`
-
-Specification idea:
-
-```java
-if (request.getSearch() != null && !request.getSearch().isBlank()) {
-    String search = "%" + request.getSearch().trim().toLowerCase() + "%";
-    predicates.add(
-            criteriaBuilder.or(
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("title")), search),
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), search)
-            )
-    );
-}
-```
-
-If you search description, consider null handling. Most databases handle `LIKE` on null as false, but title-only search is simpler for the first version.
-
 ## Fix Before Bigger Features
 
-- [ ] Decide hard delete policy before sharing the API.
-- [ ] Protect or remove hard delete endpoints before production.
-- [ ] Align description length between validation and database schema.
+Note: Hard delete will be admin-only later, but it stays public for easier development right now.
+
+- [ ] Add project description validation limit.
 - [ ] Decide what should happen to tasks when a project is soft deleted.
 - [ ] Decide whether project list needs pagination now.
 - [ ] Keep user/auth code out of MVP docs until it is implemented.
+- [ ] Protect hard delete endpoints when auth/admin roles are implemented.
 
-## After Task Search
+## After Project Task Listing
 
-- [ ] Add `GET /api/projects/{id}/tasks`.
 - [ ] Add pagination to project list.
 - [ ] Improve validation error response details.
 - [ ] Add Swagger descriptions/examples.
@@ -142,6 +125,7 @@ If you search description, consider null handling. Most databases handle `LIKE` 
 - [ ] Add register/login.
 - [ ] Add password hashing.
 - [ ] Add authorization.
+- [ ] Make hard delete admin-only.
 - [ ] Add task assignment to users.
 
 ## Not For First MVP

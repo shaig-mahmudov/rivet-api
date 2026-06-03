@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -258,10 +259,62 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.content[0].id").value(todoHighTask.getId()));
     }
 
+    @Test
+    void getTasksSearchesByTitle() throws Exception {
+        TaskResponse invoiceTask = createTask("Review invoice");
+        createTask("Plan roadmap");
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("search", "invoice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(invoiceTask.getId()));
+    }
+
+    @Test
+    void getTasksFiltersByDueDateRange() throws Exception {
+        TaskResponse firstJuneTask = createTask("First June task", LocalDate.of(2026, 6, 5));
+        TaskResponse secondJuneTask = createTask("Second June task", LocalDate.of(2026, 6, 20));
+        createTask("July task", LocalDate.of(2026, 7, 1));
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("dueDateFrom", "2026-06-01")
+                        .param("dueDateTo", "2026-06-30"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(
+                        Math.toIntExact(firstJuneTask.getId()),
+                        Math.toIntExact(secondJuneTask.getId())
+                )));
+    }
+
+    @Test
+    void getTasksFiltersFromTodayUntilDueDate() throws Exception {
+        LocalDate today = LocalDate.now();
+        createTask("Past task", today.minusDays(1));
+        TaskResponse todayTask = createTask("Today task", today);
+        TaskResponse upcomingTask = createTask("Upcoming task", today.plusDays(2));
+        createTask("Too far task", today.plusDays(5));
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("dueFromToday", "true")
+                        .param("dueDateTo", today.plusDays(3).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(
+                        Math.toIntExact(todayTask.getId()),
+                        Math.toIntExact(upcomingTask.getId())
+                )));
+    }
+
     private TaskResponse createTask(String title) throws Exception {
+        return createTask(title, null);
+    }
+
+    private TaskResponse createTask(String title, LocalDate dueDate) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createTaskRequest(title))))
+                        .content(objectMapper.writeValueAsString(createTaskRequest(title, dueDate))))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -271,9 +324,14 @@ class TaskControllerTest {
     }
 
     private CreateTaskRequest createTaskRequest(String title) {
+        return createTaskRequest(title, null);
+    }
+
+    private CreateTaskRequest createTaskRequest(String title, LocalDate dueDate) {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
         request.setDescription("Original description");
+        request.setDueDate(dueDate);
         return request;
     }
 

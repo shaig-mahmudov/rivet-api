@@ -20,7 +20,7 @@ public class UpdateTaskRequest {
     @Size(max = 100, message = "Title cannot exceed 100 characters")
     private String title;
 
-    @Size(max = 500, message = "Description cannot exceed 500 characters")
+    @Size(max = 250, message = "Description cannot exceed 250 characters")
     private String description;
 
     @NotNull
