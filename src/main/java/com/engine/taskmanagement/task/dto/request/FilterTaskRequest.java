@@ -10,6 +10,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 public class FilterTaskRequest {
+    private String search;
     private TaskStatus status;
     private TaskPriority priority;
     private Boolean dueFromToday;
