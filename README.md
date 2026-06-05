@@ -28,6 +28,7 @@ The current MVP focus is project/task management. User and auth packages exist, 
 - Assign tasks to projects with `projectId`
 - Environment-based database configuration
 - Flyway migrations for MySQL and PostgreSQL
+- Migration validation tests for MySQL and PostgreSQL schemas
 - H2 test profile
 - Service and controller tests for projects and tasks
 
@@ -52,7 +53,7 @@ CREATE DATABASE task_management;
 ## Run
 
 ```bash
-mvn spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
 
 API:
@@ -70,10 +71,10 @@ http://localhost:8080/swagger-ui/index.html
 ## Test
 
 ```bash
-mvn test
+.\mvnw.cmd test
 ```
 
-Tests use the `test` profile with H2.
+Tests use the `test` profile with H2. The regular service/controller tests use Hibernate `create-drop`; dedicated migration validation tests apply the MySQL and PostgreSQL Flyway migrations in H2 compatibility modes and then run Hibernate schema validation.
 
 ## Main Endpoints
 
@@ -168,5 +169,7 @@ Change priority:
 - Keep secrets in `.env` or environment variables.
 - Dev profile uses MySQL migrations.
 - Prod profile uses PostgreSQL migrations.
+- Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
+- `User.role` is stored as a string enum to match the migration schema.
 - Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
 - Next recommended feature: `GET /api/projects/{id}/tasks`.

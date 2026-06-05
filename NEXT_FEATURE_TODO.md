@@ -1,6 +1,6 @@
 # TaskManagement Next Feature TODO
 
-Generated: 2026-06-03
+Generated: 2026-06-06
 
 ## Current Status
 
@@ -8,7 +8,7 @@ The project is a working backend MVP candidate for project and task management.
 
 Latest verification:
 
-- [x] `mvn test` passed with 52 tests, 0 failures.
+- [x] `.\mvnw.cmd test` passed with 54 tests, 0 failures.
 
 Done:
 
@@ -17,6 +17,10 @@ Done:
 - [x] PostgreSQL production profile
 - [x] H2 test profile
 - [x] Flyway migrations for MySQL and PostgreSQL
+- [x] Spring Boot 4 Flyway auto-configuration dependency
+- [x] Migration schema validation tests for MySQL and PostgreSQL
+- [x] `User.role` enum storage explicitly matches string-based migrations
+- [x] Windows Maven wrapper starts Maven in this environment
 - [x] Project CRUD basics
 - [x] Task CRUD basics
 - [x] Soft delete and restore
@@ -39,7 +43,9 @@ Done:
 
 ## Manual Check
 
-- [ ] Run `mvn spring-boot:run`.
+- [ ] Run `.\mvnw.cmd spring-boot:run`.
+- [ ] Confirm Flyway applies V1 on a real local MySQL database.
+- [ ] Confirm the prod profile applies V1 on a real PostgreSQL database before deployment.
 - [ ] Open Swagger UI.
 - [ ] Create a project.
 - [ ] Create a task with `projectId`.
@@ -103,7 +109,7 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 - [ ] Add controller test for `GET /api/projects/{id}/tasks`.
 - [ ] Add controller test with pagination/filter query params.
 - [ ] Update README endpoint examples.
-- [ ] Run `mvn test`.
+- [ ] Run `.\mvnw.cmd test`.
 - [ ] Manually test in Swagger.
 
 ## Fix Before Bigger Features
@@ -111,6 +117,7 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 Note: Hard delete will be admin-only later, but it stays public for easier development right now.
 
 - [ ] Add project description validation limit.
+- [ ] Add a container-based MySQL/PostgreSQL migration test if database containers become part of the project.
 - [ ] Decide what should happen to tasks when a project is soft deleted.
 - [ ] Decide whether project list needs pagination now.
 - [ ] Keep user/auth code out of MVP docs until it is implemented.

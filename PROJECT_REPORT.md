@@ -1,10 +1,15 @@
 # TaskManagement Project Report
 
-Generated: 2026-06-03
+Generated: 2026-06-06
 
 ## Summary
 
 TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, search, filtering, pagination, Flyway migrations, and integration-style service/controller tests are in place.
+
+Latest migration review found and fixed two important issues:
+
+- Spring Boot 4 Flyway integration was missing, so Flyway libraries were present but migrations were not automatically running.
+- `User.role` was mapped as an ordinal enum by default, while both migrations correctly store role values as strings.
 
 The best next move is to connect projects and tasks more naturally with a project-specific task listing endpoint: `GET /api/projects/{id}/tasks`.
 
@@ -20,7 +25,9 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Global exception handling is present.
 - Shared `BaseEntity` contains `createdAt`, `updatedAt`, and `deletedAt`.
 - Flyway migrations exist for MySQL and PostgreSQL.
+- Spring Boot Flyway auto-configuration is enabled through `spring-boot-flyway`.
 - Test profile uses H2 with `ddl-auto=create-drop`.
+- Dedicated migration validation tests run the MySQL and PostgreSQL migrations against H2 compatibility modes with Hibernate `ddl-auto=validate`.
 
 ## What Exists
 
@@ -59,13 +66,15 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Optional task-to-project assignment through `projectId`.
 - Service and controller tests for project/task flows.
 - Search and due-date filter tests.
-- User/auth package placeholders and database tables.
+- MySQL and PostgreSQL migration schema validation tests.
+- User/auth package placeholders and database tables. Role storage is now explicitly string-based to match the migrations.
 
 ## Latest Verification
 
-- `mvn test` passed on 2026-06-03.
-- Test result: 52 tests, 0 failures, 0 errors, 0 skipped.
-- Test command used the cached Maven executable because `mvnw.cmd` currently fails in this environment before Maven starts.
+- `.\mvnw.cmd test` passed on 2026-06-06.
+- Test result: 54 tests, 0 failures, 0 errors, 0 skipped.
+- The Windows Maven wrapper was fixed so it can start Maven when `.m2` is a normal directory.
+- Migration validation confirmed that both V1 migration files apply successfully and match the current JPA mappings under H2 MySQL/PostgreSQL compatibility modes.
 
 ## What Is Not Finished
 
@@ -89,6 +98,7 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Pagination and sorting are available for task lists.
 - Tests cover many service and controller behaviors.
 - Flyway support makes the database setup more production-like.
+- Migration validation tests now protect the initial schema from drifting away from JPA mappings.
 
 ## Risks And Gaps
 
@@ -98,6 +108,7 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Project soft delete does not automatically soft delete child tasks. This is acceptable for now, but the expected product behavior should be decided.
 - Project restore does not need special handling yet, but task restore correctly blocks restore when its project is deleted.
 - Existing local databases created before Flyway may need reset or baseline.
+- Migration validation currently uses H2 compatibility modes. Real MySQL and PostgreSQL startup should still be checked before deployment.
 - Spring warns that returning `PageImpl` directly may produce unstable JSON structure. It is fine for the MVP, but a DTO page wrapper would be cleaner later.
 - Manual Swagger testing is still needed after endpoint changes.
 
@@ -130,7 +141,7 @@ Suggested scope:
 
 ## How To Continue
 
-1. Keep tests green with `mvn test` before and after each feature.
+1. Keep tests green with `.\mvnw.cmd test` before and after each feature.
 2. Manually test search and due-date filters in Swagger.
 3. Add `GET /api/projects/{id}/tasks`.
 4. Add project list pagination.
