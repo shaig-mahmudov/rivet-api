@@ -78,9 +78,9 @@ class ProjectControllerTest {
 
         mockMvc.perform(get("/api/projects"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(activeProject.getId()))
-                .andExpect(jsonPath("$[0].name").value("Active project"))
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.content[0].id").value(activeProject.getId()))
+                .andExpect(jsonPath("$.content[0].name").value("Active project"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -135,7 +135,7 @@ class ProjectControllerTest {
 
         mockMvc.perform(get("/api/projects"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(project.getId()));
+                .andExpect(jsonPath("$.content[0].id").value(project.getId()));
     }
 
     @Test

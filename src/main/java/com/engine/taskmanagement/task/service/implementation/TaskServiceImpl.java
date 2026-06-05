@@ -46,9 +46,13 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Page<TaskResponse> getAllTasks(Pageable pageable) {
-        return taskRepository.findAllByDeletedAtIsNull(pageable)
-                .map(taskMapper::toResponse);
+    public Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable) {
+        Page<Task> tasks = taskRepository.findAll(
+                TaskSpecification.filter(request),
+                pageable
+        );
+
+        return tasks.map(taskMapper::toResponse);
     }
 
     @Override
@@ -154,16 +158,4 @@ public class TaskServiceImpl implements TaskService {
         Task updatedTask = taskRepository.save(task);
         return taskMapper.toResponse(updatedTask);
     }
-
-    @Override
-    public Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable) {
-        Page<Task> tasks = taskRepository.findAll(
-                TaskSpecification.filter(request),
-                pageable
-        );
-
-        return tasks.map(taskMapper::toResponse);
-    }
-
-
 }

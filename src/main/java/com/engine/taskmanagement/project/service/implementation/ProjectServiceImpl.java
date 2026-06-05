@@ -2,16 +2,18 @@ package com.engine.taskmanagement.project.service.implementation;
 
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
+import com.engine.taskmanagement.project.dto.request.FilterProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.mapper.ProjectMapper;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
+import com.engine.taskmanagement.project.specification.ProjectSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
@@ -32,11 +34,11 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<ProjectResponse> getAllProjects() {
-        return projectRepository.findAllByDeletedAtIsNull()
-                .stream()
-                .map(projectMapper::toResponse)
-                .toList();
+    public Page<ProjectResponse> getProjects(FilterProjectRequest request, Pageable pageable) {
+        return projectRepository.findAll(
+                        ProjectSpecification.filter(request),
+                        pageable)
+                .map(projectMapper::toResponse);
     }
 
     @Override

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,7 +59,7 @@ class ProjectServiceImplTest {
 
         projectService.deleteProject(deletedProject.getId());
 
-        assertThat(projectService.getAllProjects())
+        assertThat(projectService.getProjects(null, Pageable.unpaged()))
                 .extracting(ProjectResponse::getId)
                 .containsExactly(activeProject.getId());
     }

@@ -1,15 +1,18 @@
 package com.engine.taskmanagement.project.controller;
 
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
+import com.engine.taskmanagement.project.dto.request.FilterProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -30,8 +33,12 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProjectResponse>> getAllProjects() {
-        List<ProjectResponse> response = projectService.getAllProjects();
+    public ResponseEntity<Page<ProjectResponse>> getProjects(
+            @ModelAttribute FilterProjectRequest request,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        Page<ProjectResponse> response = projectService.getProjects(request, pageable);
         return ResponseEntity.ok(response);
     }
 

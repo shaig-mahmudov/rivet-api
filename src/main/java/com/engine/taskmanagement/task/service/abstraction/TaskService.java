@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 public interface TaskService {
 
     TaskResponse createTask(CreateTaskRequest request);
-    Page<TaskResponse> getAllTasks(Pageable pageable);
+    Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable);
     Page<TaskResponse> getDeletedTasks(Pageable pageable);
     TaskResponse getTaskById(Long id);
     TaskResponse updateTask(Long id, UpdateTaskRequest request);
@@ -18,5 +18,5 @@ public interface TaskService {
     TaskResponse restoreTask(Long id);
     TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request);
     TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request);
-    Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable);
+
 }

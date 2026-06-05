@@ -18,6 +18,10 @@ public class TaskSpecification {
 
             predicates.add(criteriaBuilder.isNull(root.get("deletedAt")));
 
+            if (request == null) {
+                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+            }
+
             if (request.getSearch() != null && !request.getSearch().isBlank()) {
                 String search = "%" + request.getSearch().trim().toLowerCase() + "%";
 

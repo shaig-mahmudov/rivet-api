@@ -13,8 +13,6 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
 
     Optional<Task> findByIdAndDeletedAtIsNull(Long id);
 
-    Page<Task> findAllByDeletedAtIsNull(Pageable pageable);
-
     Page<Task> findAllByDeletedAtIsNotNull(Pageable pageable);
 
     Optional<Task> findByIdAndDeletedAtIsNotNull(Long id);

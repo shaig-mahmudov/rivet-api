@@ -61,7 +61,7 @@ class TaskServiceImplTest {
 
         taskService.deleteTask(deletedTask.getId());
 
-        assertThat(taskService.getAllTasks(Pageable.unpaged()).getContent())
+        assertThat(taskService.getTasks(null, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(activeTask.getId());
         assertThat(taskService.getDeletedTasks(Pageable.unpaged()).getContent())
@@ -122,7 +122,7 @@ class TaskServiceImplTest {
         TaskResponse restored = taskService.restoreTask(task.getId());
 
         assertThat(restored.getId()).isEqualTo(task.getId());
-        assertThat(taskService.getAllTasks(Pageable.unpaged()).getContent())
+        assertThat(taskService.getTasks(null, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(task.getId());
         assertThat(taskService.getDeletedTasks(Pageable.unpaged()).getContent()).isEmpty();
@@ -188,7 +188,7 @@ class TaskServiceImplTest {
         assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .containsExactly(highTask.getId());
-        assertThat(taskService.getAllTasks(Pageable.unpaged()).getContent())
+        assertThat(taskService.getTasks(null, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .contains(mediumTask.getId());
     }
