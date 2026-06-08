@@ -20,6 +20,8 @@ The current MVP focus is project/task management. User and auth packages exist, 
 ## Current Features
 
 - Project create, list, update, soft delete, hard delete, restore
+- Project search by name/description and filtering by owner id
+- Project pagination and sorting
 - Task create, list, get by id, update, partial update, soft delete, hard delete, restore
 - Task status and priority update endpoints
 - Task search by title and description
@@ -98,6 +100,15 @@ Create project:
 }
 ```
 
+Filter and paginate projects:
+
+```text
+GET /api/projects?search=mvp
+GET /api/projects?ownerId=1
+GET /api/projects?page=0&size=10&sort=createdAt,desc
+GET /api/projects?search=mvp&ownerId=1&page=0&size=10
+```
+
 ### Tasks
 
 ```text
@@ -171,5 +182,6 @@ Change priority:
 - Prod profile uses PostgreSQL migrations.
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
 - `User.role` is stored as a string enum to match the migration schema.
+- Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
 - Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
 - Next recommended feature: `GET /api/projects/{id}/tasks`.

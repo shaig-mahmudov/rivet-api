@@ -1,10 +1,10 @@
 # TaskManagement Project Report
 
-Generated: 2026-06-06
+Generated: 2026-06-08
 
 ## Summary
 
-TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, search, filtering, pagination, Flyway migrations, and integration-style service/controller tests are in place.
+TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, project/task search and filtering, pagination, Flyway migrations, and integration-style service/controller tests are in place.
 
 Latest migration review found and fixed two important issues:
 
@@ -22,6 +22,7 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Service classes contain business behavior.
 - Repository classes use Spring Data JPA.
 - `TaskRepository` supports `JpaSpecificationExecutor` for dynamic filters.
+- `ProjectRepository` supports `JpaSpecificationExecutor` for dynamic filters.
 - Global exception handling is present.
 - Shared `BaseEntity` contains `createdAt`, `updatedAt`, and `deletedAt`.
 - Flyway migrations exist for MySQL and PostgreSQL.
@@ -37,7 +38,9 @@ The best next move is to connect projects and tasks more naturally with a projec
 - H2 test profile.
 - Project API:
   - create project
-  - list active projects
+  - list active projects with pagination and sorting
+  - search projects by name/description
+  - filter projects by owner id
   - update project
   - soft delete project
   - hard delete project
@@ -62,7 +65,7 @@ The best next move is to connect projects and tasks more naturally with a projec
   - due date from
   - due date to
   - due from today with an upper due date
-- Task pagination and sorting.
+- Project and task pagination and sorting.
 - Optional task-to-project assignment through `projectId`.
 - Service and controller tests for project/task flows.
 - Search and due-date filter tests.
@@ -71,7 +74,7 @@ The best next move is to connect projects and tasks more naturally with a projec
 
 ## Latest Verification
 
-- `.\mvnw.cmd test` passed on 2026-06-06.
+- `.\mvnw.cmd test` passed on 2026-06-08.
 - Test result: 54 tests, 0 failures, 0 errors, 0 skipped.
 - The Windows Maven wrapper was fixed so it can start Maven when `.m2` is a normal directory.
 - Migration validation confirmed that both V1 migration files apply successfully and match the current JPA mappings under H2 MySQL/PostgreSQL compatibility modes.
@@ -83,9 +86,8 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Register/login are not implemented.
 - Password hashing is not implemented.
 - Authorization is not implemented.
-- Project list is not paginated.
 - Hard delete endpoints are intentionally still public for easier development.
-- Assignment to users is modeled in the database/entity, but no API flow uses it yet.
+- Project ownership and task assignment to users are modeled in the database/entities, but no API flow uses them yet.
 
 ## Strengths
 
@@ -93,9 +95,9 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Domain packages are easy to navigate.
 - DTOs prevent direct entity exposure.
 - Soft delete and restore are handled consistently in the main flows.
-- Task filtering uses a scalable Specification-based approach.
+- Project and task filtering use a scalable Specification-based approach.
 - Search combines cleanly with status, priority, project, and due-date filters.
-- Pagination and sorting are available for task lists.
+- Pagination and sorting are available for project and task lists.
 - Tests cover many service and controller behaviors.
 - Flyway support makes the database setup more production-like.
 - Migration validation tests now protect the initial schema from drifting away from JPA mappings.
@@ -107,6 +109,7 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Task description validation is now capped at 250 characters, which fits the `VARCHAR(255)` migration. Project description still has no explicit validation limit.
 - Project soft delete does not automatically soft delete child tasks. This is acceptable for now, but the expected product behavior should be decided.
 - Project restore does not need special handling yet, but task restore correctly blocks restore when its project is deleted.
+- Project search/owner filtering is implemented, but filter-specific tests should still be added.
 - Existing local databases created before Flyway may need reset or baseline.
 - Migration validation currently uses H2 compatibility modes. Real MySQL and PostgreSQL startup should still be checked before deployment.
 - Spring warns that returning `PageImpl` directly may produce unstable JSON structure. It is fine for the MVP, but a DTO page wrapper would be cleaner later.
@@ -126,7 +129,7 @@ Why this should come next:
 
 - It improves the project/task relationship that already exists in the database.
 - It is useful for any future frontend project detail page.
-- It reuses the task pagination/filtering model.
+- It reuses the existing pagination/filtering model.
 - It is smaller than auth and keeps the MVP focused.
 
 Suggested scope:
@@ -144,16 +147,16 @@ Suggested scope:
 1. Keep tests green with `.\mvnw.cmd test` before and after each feature.
 2. Manually test search and due-date filters in Swagger.
 3. Add `GET /api/projects/{id}/tasks`.
-4. Add project list pagination.
-5. Add project description validation.
+4. Add project description validation.
+5. Add project filter tests.
 6. Move hard delete behind admin authorization when auth is ready.
 7. Build user/auth after the task/project API feels stable.
 
 ## Suggested Roadmap
 
 1. Project task listing endpoint.
-2. Project list pagination.
-3. Project description validation.
+2. Project description validation.
+3. Project filter tests.
 4. Validation error response improvements.
 5. Swagger examples/descriptions.
 6. User registration and login.

@@ -1,6 +1,6 @@
 # TaskManagement Next Feature TODO
 
-Generated: 2026-06-06
+Generated: 2026-06-08
 
 ## Current Status
 
@@ -8,7 +8,7 @@ The project is a working backend MVP candidate for project and task management.
 
 Latest verification:
 
-- [x] `.\mvnw.cmd test` passed with 54 tests, 0 failures.
+- [x] `.\mvnw.cmd test` passed on 2026-06-08 with 54 tests, 0 failures.
 
 Done:
 
@@ -22,6 +22,9 @@ Done:
 - [x] `User.role` enum storage explicitly matches string-based migrations
 - [x] Windows Maven wrapper starts Maven in this environment
 - [x] Project CRUD basics
+- [x] Project pagination and sorting
+- [x] Filter projects by search text
+- [x] Filter projects by owner id
 - [x] Task CRUD basics
 - [x] Soft delete and restore
 - [x] Task status and priority endpoints
@@ -48,6 +51,9 @@ Done:
 - [ ] Confirm the prod profile applies V1 on a real PostgreSQL database before deployment.
 - [ ] Open Swagger UI.
 - [ ] Create a project.
+- [ ] List projects with pagination.
+- [ ] Filter projects by `search`.
+- [ ] Filter projects by `ownerId`.
 - [ ] Create a task with `projectId`.
 - [ ] List tasks with pagination.
 - [ ] Filter tasks by `search`.
@@ -119,13 +125,14 @@ Note: Hard delete will be admin-only later, but it stays public for easier devel
 - [ ] Add project description validation limit.
 - [ ] Add a container-based MySQL/PostgreSQL migration test if database containers become part of the project.
 - [ ] Decide what should happen to tasks when a project is soft deleted.
-- [ ] Decide whether project list needs pagination now.
+- [ ] Add project search and owner filter tests.
 - [ ] Keep user/auth code out of MVP docs until it is implemented.
 - [ ] Protect hard delete endpoints when auth/admin roles are implemented.
 
 ## After Project Task Listing
 
-- [ ] Add pagination to project list.
+- [ ] Add project description validation.
+- [ ] Add project filter tests.
 - [ ] Improve validation error response details.
 - [ ] Add Swagger descriptions/examples.
 - [ ] Add basic user CRUD.
