@@ -158,4 +158,21 @@ public class TaskServiceImpl implements TaskService {
         Task updatedTask = taskRepository.save(task);
         return taskMapper.toResponse(updatedTask);
     }
+
+    @Override
+    public Page<TaskResponse> getTasksByProjectId(Long projectId, FilterTaskRequest request, Pageable pageable) {
+        projectRepository.findByIdAndDeletedAtIsNull(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Active project not found"));
+
+        if (request == null) {
+            request = new FilterTaskRequest();
+        }
+
+        request.setProjectId(projectId);
+
+        return taskRepository.findAll(TaskSpecification.filter(request), pageable)
+                .map(taskMapper::toResponse);
+    }
+
+
 }

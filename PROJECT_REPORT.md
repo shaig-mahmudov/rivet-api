@@ -4,14 +4,14 @@ Generated: 2026-06-08
 
 ## Summary
 
-TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, project/task search and filtering, pagination, Flyway migrations, and integration-style service/controller tests are in place.
+TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, project/task search and filtering, project-specific task listing, pagination, Flyway migrations, and integration-style service/controller tests are in place.
 
 Latest migration review found and fixed two important issues:
 
 - Spring Boot 4 Flyway integration was missing, so Flyway libraries were present but migrations were not automatically running.
 - `User.role` was mapped as an ordinal enum by default, while both migrations correctly store role values as strings.
 
-The best next move is to connect projects and tasks more naturally with a project-specific task listing endpoint: `GET /api/projects/{id}/tasks`.
+The project/task relationship now includes a project-specific task listing endpoint: `GET /api/projects/{id}/tasks`.
 
 ## Current Architecture
 
@@ -57,6 +57,10 @@ The best next move is to connect projects and tasks more naturally with a projec
   - restore
   - change status
   - change priority
+- Project-specific task listing:
+  - list active tasks for one active project with `GET /api/projects/{id}/tasks`
+  - support pagination, sorting, and the existing task filters
+  - return `404` for missing or soft-deleted projects
 - Task filtering by:
   - search text
   - status
@@ -75,13 +79,12 @@ The best next move is to connect projects and tasks more naturally with a projec
 ## Latest Verification
 
 - `.\mvnw.cmd test` passed on 2026-06-08.
-- Test result: 54 tests, 0 failures, 0 errors, 0 skipped.
+- Test result: 63 tests, 0 failures, 0 errors, 0 skipped.
 - The Windows Maven wrapper was fixed so it can start Maven when `.m2` is a normal directory.
 - Migration validation confirmed that both V1 migration files apply successfully and match the current JPA mappings under H2 MySQL/PostgreSQL compatibility modes.
 
 ## What Is Not Finished
 
-- `GET /api/projects/{id}/tasks` is not implemented yet.
 - User API is not implemented.
 - Register/login are not implemented.
 - Password hashing is not implemented.
@@ -115,9 +118,9 @@ The best next move is to connect projects and tasks more naturally with a projec
 - Spring warns that returning `PageImpl` directly may produce unstable JSON structure. It is fine for the MVP, but a DTO page wrapper would be cleaner later.
 - Manual Swagger testing is still needed after endpoint changes.
 
-## Recommended Next Feature
+## Recently Completed Feature
 
-Recommended next feature: project-specific task listing.
+Completed feature: project-specific task listing.
 
 Suggested endpoint:
 
@@ -132,11 +135,11 @@ Why this should come next:
 - It reuses the existing pagination/filtering model.
 - It is smaller than auth and keeps the MVP focused.
 
-Suggested scope:
+Implemented scope:
 
 - Return active tasks for one active project.
 - Support pagination and sorting.
-- Optionally support the same filters as `GET /api/tasks`.
+- Support the same filters as `GET /api/tasks`.
 - Return `404` if the project does not exist or is soft deleted.
 - Add service tests.
 - Add controller tests.
@@ -146,21 +149,19 @@ Suggested scope:
 
 1. Keep tests green with `.\mvnw.cmd test` before and after each feature.
 2. Manually test search and due-date filters in Swagger.
-3. Add `GET /api/projects/{id}/tasks`.
-4. Add project description validation.
-5. Add project filter tests.
-6. Move hard delete behind admin authorization when auth is ready.
-7. Build user/auth after the task/project API feels stable.
+3. Add project description validation.
+4. Add project filter tests.
+5. Move hard delete behind admin authorization when auth is ready.
+6. Build user/auth after the task/project API feels stable.
 
 ## Suggested Roadmap
 
-1. Project task listing endpoint.
-2. Project description validation.
-3. Project filter tests.
-4. Validation error response improvements.
-5. Swagger examples/descriptions.
-6. User registration and login.
-7. Password hashing and authorization.
-8. Admin-only hard delete.
-9. User assignment for tasks.
-10. Frontend or API client.
+1. Project description validation.
+2. Project filter tests.
+3. Validation error response improvements.
+4. Swagger examples/descriptions.
+5. User registration and login.
+6. Password hashing and authorization.
+7. Admin-only hard delete.
+8. User assignment for tasks.
+9. Frontend or API client.

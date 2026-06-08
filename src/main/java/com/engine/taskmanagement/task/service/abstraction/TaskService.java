@@ -18,5 +18,6 @@ public interface TaskService {
     TaskResponse restoreTask(Long id);
     TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request);
     TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request);
+    Page<TaskResponse> getTasksByProjectId(Long projectId, FilterTaskRequest request, Pageable pageable);
 
 }

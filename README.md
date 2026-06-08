@@ -26,6 +26,7 @@ The current MVP focus is project/task management. User and auth packages exist, 
 - Task status and priority update endpoints
 - Task search by title and description
 - Task filtering by status, priority, project id, and due date
+- Project-specific task listing with `GET /api/projects/{id}/tasks`
 - Task pagination and sorting
 - Assign tasks to projects with `projectId`
 - Environment-based database configuration
@@ -89,6 +90,7 @@ PUT    /api/projects/{id}
 DELETE /api/projects/{id}
 DELETE /api/projects/{id}/hard
 POST   /api/projects/{id}/restore
+GET    /api/projects/{id}/tasks
 ```
 
 Create project:
@@ -107,6 +109,9 @@ GET /api/projects?search=mvp
 GET /api/projects?ownerId=1
 GET /api/projects?page=0&size=10&sort=createdAt,desc
 GET /api/projects?search=mvp&ownerId=1&page=0&size=10
+GET /api/projects/1/tasks
+GET /api/projects/1/tasks?status=TODO
+GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-06-30
 ```
 
 ### Tasks
@@ -184,4 +189,4 @@ Change priority:
 - `User.role` is stored as a string enum to match the migration schema.
 - Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
 - Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
-- Next recommended feature: `GET /api/projects/{id}/tasks`.
+- Next recommended feature: project description validation.

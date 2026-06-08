@@ -8,7 +8,7 @@ The project is a working backend MVP candidate for project and task management.
 
 Latest verification:
 
-- [x] `.\mvnw.cmd test` passed on 2026-06-08 with 54 tests, 0 failures.
+- [x] `.\mvnw.cmd test` passed on 2026-06-08 with 63 tests, 0 failures.
 
 Done:
 
@@ -37,10 +37,13 @@ Done:
 - [x] Filter tasks by due date to
 - [x] Filter tasks from today until a due date
 - [x] Pagination and sorting for task list
+- [x] Project-specific task listing with `GET /api/projects/{id}/tasks`
 - [x] Project service tests
 - [x] Task service tests
 - [x] Project controller tests
 - [x] Task controller tests
+- [x] Project task listing service tests
+- [x] Project task listing controller tests
 - [x] Search filter tests
 - [x] Due-date filter tests
 
@@ -66,9 +69,9 @@ Done:
 - [ ] Soft delete and restore a task.
 - [ ] Soft delete and restore a project.
 
-## Best Next Feature
+## Recently Completed Feature
 
-Best next feature: project-specific task listing.
+Completed feature: project-specific task listing.
 
 Suggested endpoint:
 
@@ -83,14 +86,15 @@ Why:
 - It can reuse pagination, sorting, and existing task filters.
 - It is smaller and safer than starting auth right now.
 
-Recommended behavior:
+Implemented behavior:
 
-- [ ] Return only active tasks.
-- [ ] Return tasks only for the requested active project.
-- [ ] Return `404` when the project does not exist.
-- [ ] Return `404` when the project is soft deleted.
-- [ ] Support pagination and sorting.
-- [ ] Optionally support task filters: `search`, `status`, `priority`, `dueDateFrom`, `dueDateTo`, and `dueFromToday`.
+- [x] Return only active tasks.
+- [x] Return tasks only for the requested active project.
+- [x] Return `404` when the project does not exist.
+- [x] Return `404` when the project is soft deleted.
+- [x] Support pagination and sorting.
+- [x] Support task filters: `search`, `status`, `priority`, `dueDateFrom`, `dueDateTo`, and `dueFromToday`.
+- [x] Force `projectId` from the path variable so clients cannot override it with a query parameter.
 
 Suggested API examples:
 
@@ -103,19 +107,19 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 
 ## Implementation Checklist
 
-- [ ] Decide whether the endpoint belongs in `ProjectController` or `TaskController`.
-- [ ] Add a service method for project task listing.
-- [ ] Verify the project exists with `findByIdAndDeletedAtIsNull`.
-- [ ] Reuse `FilterTaskRequest` for optional filters.
-- [ ] Force `projectId` from the path variable so clients cannot override it with a query parameter.
-- [ ] Return `Page<TaskResponse>`.
-- [ ] Add service test for active project tasks.
-- [ ] Add service test that excludes tasks from other projects.
-- [ ] Add service test for missing/deleted project.
-- [ ] Add controller test for `GET /api/projects/{id}/tasks`.
-- [ ] Add controller test with pagination/filter query params.
-- [ ] Update README endpoint examples.
-- [ ] Run `.\mvnw.cmd test`.
+- [x] Decide whether the endpoint belongs in `ProjectController` or `TaskController`.
+- [x] Add a service method for project task listing.
+- [x] Verify the project exists with `findByIdAndDeletedAtIsNull`.
+- [x] Reuse `FilterTaskRequest` for optional filters.
+- [x] Force `projectId` from the path variable so clients cannot override it with a query parameter.
+- [x] Return `Page<TaskResponse>`.
+- [x] Add service test for active project tasks.
+- [x] Add service test that excludes tasks from other projects.
+- [x] Add service test for missing/deleted project.
+- [x] Add controller test for `GET /api/projects/{id}/tasks`.
+- [x] Add controller test with pagination/filter query params.
+- [x] Update README endpoint examples.
+- [x] Run `.\mvnw.cmd test`.
 - [ ] Manually test in Swagger.
 
 ## Fix Before Bigger Features

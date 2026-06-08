@@ -5,6 +5,9 @@ import com.engine.taskmanagement.project.dto.request.FilterProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
+import com.engine.taskmanagement.task.dto.request.FilterTaskRequest;
+import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,9 +22,11 @@ import org.springframework.web.bind.annotation.*;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final TaskService taskService;
 
-    public ProjectController(ProjectService projectService) {
+    public ProjectController(ProjectService projectService, TaskService taskService) {
         this.projectService = projectService;
+        this.taskService = taskService;
     }
 
     @PostMapping
@@ -69,4 +74,13 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}/tasks")
+    public ResponseEntity<Page<TaskResponse>> getProjectTasks(
+            @PathVariable Long id,
+            @ModelAttribute FilterTaskRequest request,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(taskService.getTasksByProjectId(id, request, pageable));
+    }
 }
