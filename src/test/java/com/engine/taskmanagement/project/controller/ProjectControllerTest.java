@@ -4,6 +4,9 @@ import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
+import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
+import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -154,6 +157,56 @@ class ProjectControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void getProjectTasksReturnsOnlyActiveTasksForProject() throws Exception {
+        ProjectResponse project = createProject("Project A", "First project");
+        ProjectResponse otherProject = createProject("Project B", "Second project");
+        TaskResponse projectTask = createTask("Project task", project.getId());
+        TaskResponse deletedProjectTask = createTask("Deleted project task", project.getId());
+        createTask("Other project task", otherProject.getId());
+        mockMvc.perform(delete("/api/tasks/{id}", deletedProjectTask.getId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(projectTask.getId()))
+                .andExpect(jsonPath("$.content[0].projectId").value(project.getId()));
+    }
+
+    @Test
+    void getProjectTasksSupportsFiltersAndPathProjectWinsOverQueryProjectId() throws Exception {
+        ProjectResponse project = createProject("Project A", "First project");
+        ProjectResponse otherProject = createProject("Project B", "Second project");
+        TaskResponse projectTodoTask = createTask("Project todo task", project.getId(), TaskStatus.TODO);
+        createTask("Project done task", project.getId(), TaskStatus.DONE);
+        createTask("Other project todo task", otherProject.getId(), TaskStatus.TODO);
+
+        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId())
+                        .param("status", "TODO")
+                        .param("projectId", otherProject.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(projectTodoTask.getId()))
+                .andExpect(jsonPath("$.content[0].projectId").value(project.getId()));
+    }
+
+    @Test
+    void getProjectTasksForMissingProjectReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/api/projects/{id}/tasks", 999L))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getProjectTasksForSoftDeletedProjectReturnsNotFound() throws Exception {
+        ProjectResponse project = createProject("Deleted project", "No tasks should be listed");
+        mockMvc.perform(delete("/api/projects/{id}", project.getId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId()))
+                .andExpect(status().isNotFound());
+    }
+
     private ProjectResponse createProject(String name, String description) throws Exception {
         String content = mockMvc.perform(post("/api/projects")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -164,6 +217,28 @@ class ProjectControllerTest {
                 .getContentAsString();
 
         return objectMapper.readValue(content, ProjectResponse.class);
+    }
+
+    private TaskResponse createTask(String title, Long projectId) throws Exception {
+        return createTask(title, projectId, null);
+    }
+
+    private TaskResponse createTask(String title, Long projectId, TaskStatus status) throws Exception {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle(title);
+        request.setDescription("Original description");
+        request.setProjectId(projectId);
+        request.setStatus(status);
+
+        String content = mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readValue(content, TaskResponse.class);
     }
 
     private CreateProjectRequest createProjectRequest(String name, String description) {

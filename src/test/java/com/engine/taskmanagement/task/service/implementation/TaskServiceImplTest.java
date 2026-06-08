@@ -1,6 +1,8 @@
 package com.engine.taskmanagement.task.service.implementation;
 
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
+import com.engine.taskmanagement.project.entity.Project;
+import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
@@ -34,9 +36,13 @@ class TaskServiceImplTest {
     @Autowired
     private TaskRepository taskRepository;
 
+    @Autowired
+    private ProjectRepository projectRepository;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
+        projectRepository.deleteAll();
     }
 
     @Test
@@ -289,8 +295,77 @@ class TaskServiceImplTest {
                 .containsExactlyInAnyOrder(todayTask.getId(), upcomingTask.getId());
     }
 
+    @Test
+    void getTasksByProjectIdReturnsOnlyActiveTasksForProject() {
+        Project project = createProject("Project A");
+        Project otherProject = createProject("Project B");
+        TaskResponse projectTask = taskService.createTask(createTaskRequest("Project task", project.getId()));
+        TaskResponse deletedProjectTask = taskService.createTask(createTaskRequest("Deleted project task", project.getId()));
+        taskService.createTask(createTaskRequest("Other project task", otherProject.getId()));
+        taskService.deleteTask(deletedProjectTask.getId());
+
+        assertThat(taskService.getTasksByProjectId(project.getId(), null, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(projectTask.getId());
+    }
+
+    @Test
+    void getTasksByProjectIdCombinesPathProjectWithFilters() {
+        Project project = createProject("Project A");
+        Project otherProject = createProject("Project B");
+        TaskResponse todoTask = taskService.createTask(createTaskRequest("Todo project task", project.getId()));
+        TaskResponse doneTask = taskService.createTask(createTaskRequest("Done project task", project.getId()));
+        TaskResponse otherProjectTodoTask = taskService.createTask(createTaskRequest("Other project todo task", otherProject.getId()));
+        changeStatus(doneTask.getId(), TaskStatus.DONE);
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setStatus(TaskStatus.TODO);
+
+        assertThat(taskService.getTasksByProjectId(project.getId(), request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(todoTask.getId())
+                .doesNotContain(otherProjectTodoTask.getId());
+    }
+
+    @Test
+    void getTasksByProjectIdUsesPathProjectIdOverRequestProjectId() {
+        Project project = createProject("Project A");
+        Project otherProject = createProject("Project B");
+        TaskResponse projectTask = taskService.createTask(createTaskRequest("Project task", project.getId()));
+        taskService.createTask(createTaskRequest("Other project task", otherProject.getId()));
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setProjectId(otherProject.getId());
+
+        assertThat(taskService.getTasksByProjectId(project.getId(), request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(projectTask.getId());
+    }
+
+    @Test
+    void getTasksByProjectIdThrowsWhenProjectDoesNotExist() {
+        assertThatThrownBy(() -> taskService.getTasksByProjectId(999L, null, Pageable.unpaged()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Active project not found");
+    }
+
+    @Test
+    void getTasksByProjectIdThrowsWhenProjectIsSoftDeleted() {
+        Project project = createProject("Deleted project");
+        project.markAsDeleted();
+        projectRepository.save(project);
+
+        assertThatThrownBy(() -> taskService.getTasksByProjectId(project.getId(), null, Pageable.unpaged()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Active project not found");
+    }
+
     private CreateTaskRequest createTaskRequest(String title) {
         return createTaskRequest(title, "Original description", null);
+    }
+
+    private CreateTaskRequest createTaskRequest(String title, Long projectId) {
+        CreateTaskRequest request = createTaskRequest(title);
+        request.setProjectId(projectId);
+        return request;
     }
 
     private CreateTaskRequest createTaskRequest(String title, String description, LocalDate dueDate) {
@@ -299,6 +374,13 @@ class TaskServiceImplTest {
         request.setDescription(description);
         request.setDueDate(dueDate);
         return request;
+    }
+
+    private Project createProject(String name) {
+        Project project = new Project();
+        project.setName(name);
+        project.setDescription("Project description");
+        return projectRepository.save(project);
     }
 
     private void changeStatus(Long taskId, TaskStatus status) {
