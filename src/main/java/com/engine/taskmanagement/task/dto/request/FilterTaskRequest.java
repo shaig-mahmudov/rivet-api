@@ -17,4 +17,5 @@ public class FilterTaskRequest {
     private LocalDate dueDateFrom;
     private LocalDate dueDateTo;
     private Long projectId;
+    private Long assigneeId;
 }

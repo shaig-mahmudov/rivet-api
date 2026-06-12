@@ -58,6 +58,12 @@ public class TaskSpecification {
                 );
             }
 
+            if (request.getAssigneeId() != null) {
+                predicates.add(
+                        criteriaBuilder.equal(root.get("assignee").get("id"), request.getAssigneeId())
+                );
+            }
+
             if (Boolean.TRUE.equals(request.getDueFromToday()) && request.getDueDateTo() != null) {
                 predicates.add(
                         criteriaBuilder.greaterThanOrEqualTo(root.get("dueDate"), today)

@@ -11,6 +11,7 @@ import java.time.LocalDate;
 @Setter
 public class PartialUpdateTaskRequest {
     private Long projectId;
+    private Long assigneeId;
     private String title;
     private String description;
     private TaskPriority priority;

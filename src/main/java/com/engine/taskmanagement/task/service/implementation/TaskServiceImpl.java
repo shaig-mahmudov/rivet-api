@@ -11,6 +11,8 @@ import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import com.engine.taskmanagement.task.specification.TaskSpecification;
+import com.engine.taskmanagement.user.entity.User;
+import com.engine.taskmanagement.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,12 +23,19 @@ public class TaskServiceImpl implements TaskService {
 
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
     private final TaskMapper taskMapper;
 
 
-    public TaskServiceImpl(TaskRepository taskRepository, ProjectRepository projectRepository, TaskMapper taskMapper) {
+    public TaskServiceImpl(
+            TaskRepository taskRepository,
+            ProjectRepository projectRepository,
+            UserRepository userRepository,
+            TaskMapper taskMapper
+    ) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
+        this.userRepository = userRepository;
         this.taskMapper = taskMapper;
     }
 
@@ -39,6 +48,10 @@ public class TaskServiceImpl implements TaskService {
                     .orElseThrow(() -> new ResourceNotFoundException("Active project not found"));
 
             task.setProject(project);
+        }
+
+        if (request.getAssigneeId() != null) {
+            task.setAssignee(findActiveUser(request.getAssigneeId()));
         }
 
         Task savedTask = taskRepository.save(task);
@@ -83,6 +96,10 @@ public class TaskServiceImpl implements TaskService {
             currentTask.setProject(project);
         }
 
+        if (request.getAssigneeId() != null) {
+            currentTask.setAssignee(findActiveUser(request.getAssigneeId()));
+        }
+
         taskMapper.updateEntity(request, currentTask);
         Task updatedTask = taskRepository.save(currentTask);
         return taskMapper.toResponse(updatedTask);
@@ -99,6 +116,9 @@ public class TaskServiceImpl implements TaskService {
                     .orElseThrow(() -> new ResourceNotFoundException("Active project not found"));
 
             currentTask.setProject(project);
+        }
+        if (request.getAssigneeId() != null) {
+            currentTask.setAssignee(findActiveUser(request.getAssigneeId()));
         }
         taskMapper.partialUpdateEntity(request, currentTask);
         Task updatedTask = taskRepository.save((currentTask));
@@ -172,6 +192,11 @@ public class TaskServiceImpl implements TaskService {
 
         return taskRepository.findAll(TaskSpecification.filter(request), pageable)
                 .map(taskMapper::toResponse);
+    }
+
+    private User findActiveUser(Long userId) {
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Active user not found"));
     }
 
 

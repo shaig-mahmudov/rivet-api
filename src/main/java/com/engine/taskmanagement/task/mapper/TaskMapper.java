@@ -19,6 +19,7 @@ public interface TaskMapper {
     Task toEntity(CreateTaskRequest request);
 
     @Mapping(target = "projectId", source = "project.id")
+    @Mapping(target = "assigneeId", source = "assignee.id")
     TaskResponse toResponse(Task task);
 
     @Mapping(target = "id", ignore = true)

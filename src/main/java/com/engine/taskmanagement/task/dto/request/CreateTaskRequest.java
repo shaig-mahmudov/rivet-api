@@ -15,6 +15,7 @@ import java.time.LocalDate;
 public class CreateTaskRequest {
 
     private Long projectId;
+    private Long assigneeId;
 
     @NotBlank(message = "Title is required")
     @Size(max = 100, message = "Title cannot exceed 100 characters")
