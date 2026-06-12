@@ -26,24 +26,27 @@ public class UserServiceImpl implements UserService {
     public UserResponse createUser(CreateUserRequest request) {
         User user = userMapper.toEntity(request);
         User savedUser = userRepository.save(user);
-        return userMapper.toResponse(user);
+        return userMapper.toResponse(savedUser);
     }
 
     @Override
     public UserResponse updateUser(UpdateUserRequest request) {
-        return null;
+        throw new UnsupportedOperationException("User update is not implemented yet");
     }
 
     @Override
     public List<UserResponse> getAllUsers() {
-        return userRepository.findAllByDeletedAtIsNotNull()
+        return userRepository.findAllByDeletedAtIsNull()
                 .stream()
                 .map(userMapper::toResponse)
-                .toList()   ;
+                .toList();
     }
 
     @Override
     public List<UserResponse> getAllDeletedUsers() {
-        return List.of();
+        return userRepository.findAllByDeletedAtIsNotNull()
+                .stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 }
