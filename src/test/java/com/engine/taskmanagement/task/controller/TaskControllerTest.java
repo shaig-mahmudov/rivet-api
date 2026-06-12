@@ -65,10 +65,17 @@ class TaskControllerTest {
     }
 
     @Test
+    void getTasksWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/tasks"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createTaskReturnsCreatedTask() throws Exception {
         CreateTaskRequest request = createTaskRequest("Controller task");
 
         mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -84,6 +91,7 @@ class TaskControllerTest {
         request.setDescription("Missing title");
 
         mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -93,10 +101,12 @@ class TaskControllerTest {
     void getAllTasksReturnsOnlyActiveTasks() throws Exception {
         TaskResponse activeTask = createTask("Active task");
         TaskResponse deletedTask = createTask("Deleted task");
-        mockMvc.perform(delete("/api/tasks/{id}", deletedTask.getId()))
+        mockMvc.perform(delete("/api/tasks/{id}", deletedTask.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/tasks"))
+        mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(activeTask.getId()))
                 .andExpect(jsonPath("$.content[0].title").value("Active task"))
@@ -107,7 +117,8 @@ class TaskControllerTest {
     void getTaskByIdReturnsTask() throws Exception {
         TaskResponse task = createTask("Find me");
 
-        mockMvc.perform(get("/api/tasks/{id}", task.getId()))
+        mockMvc.perform(get("/api/tasks/{id}", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(task.getId()))
                 .andExpect(jsonPath("$.title").value("Find me"));
@@ -115,7 +126,8 @@ class TaskControllerTest {
 
     @Test
     void getTaskByMissingIdReturnsNotFound() throws Exception {
-        mockMvc.perform(get("/api/tasks/{id}", 999L))
+        mockMvc.perform(get("/api/tasks/{id}", 999L)
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNotFound());
     }
 
@@ -130,6 +142,7 @@ class TaskControllerTest {
         request.setDueDate(LocalDate.now().plusDays(2));
 
         mockMvc.perform(put("/api/tasks/{id}", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -148,6 +161,7 @@ class TaskControllerTest {
         request.setPriority(TaskPriority.HIGH);
 
         mockMvc.perform(patch("/api/tasks/{id}", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -161,13 +175,16 @@ class TaskControllerTest {
     void deleteTaskSoftDeletesTaskAndDeletedListReturnsIt() throws Exception {
         TaskResponse task = createTask("Delete me");
 
-        mockMvc.perform(delete("/api/tasks/{id}", task.getId()))
+        mockMvc.perform(delete("/api/tasks/{id}", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/tasks/{id}", task.getId()))
+        mockMvc.perform(get("/api/tasks/{id}", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/api/tasks/deleted"))
+        mockMvc.perform(get("/api/tasks/deleted")
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(task.getId()))
                 .andExpect(jsonPath("$.content[0].title").value("Delete me"))
@@ -177,14 +194,17 @@ class TaskControllerTest {
     @Test
     void restoreTaskReturnsTaskToActiveList() throws Exception {
         TaskResponse task = createTask("Restore me");
-        mockMvc.perform(delete("/api/tasks/{id}", task.getId()))
+        mockMvc.perform(delete("/api/tasks/{id}", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(post("/api/tasks/{id}/restore", task.getId()))
+        mockMvc.perform(post("/api/tasks/{id}/restore", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(task.getId()));
 
-        mockMvc.perform(get("/api/tasks"))
+        mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(task.getId()));
     }
@@ -215,6 +235,7 @@ class TaskControllerTest {
         request.setAssigneeId(assignee.getId());
 
         mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -229,6 +250,7 @@ class TaskControllerTest {
         createTask("Other assigned task", null, otherAssignee.getId());
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("assigneeId", assignee.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -243,6 +265,7 @@ class TaskControllerTest {
         request.setStatus(TaskStatus.DONE);
 
         mockMvc.perform(post("/api/tasks/{id}/status", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -256,6 +279,7 @@ class TaskControllerTest {
         request.setPriority(TaskPriority.URGENT);
 
         mockMvc.perform(post("/api/tasks/{id}/priority", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -269,6 +293,7 @@ class TaskControllerTest {
         changeStatus(doneTask.getId(), TaskStatus.DONE);
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("status", "TODO"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -282,12 +307,14 @@ class TaskControllerTest {
         changePriority(urgentTask.getId(), TaskPriority.URGENT);
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("priority", "URGENT"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(urgentTask.getId()));
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("priority", "MEDIUM"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(mediumTask.getId()));
@@ -304,6 +331,7 @@ class TaskControllerTest {
         changePriority(todoLowTask.getId(), TaskPriority.LOW);
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("status", "TODO")
                         .param("priority", "HIGH"))
                 .andExpect(status().isOk())
@@ -317,6 +345,7 @@ class TaskControllerTest {
         createTask("Plan roadmap");
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("search", "invoice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -330,6 +359,7 @@ class TaskControllerTest {
         createTask("July task", LocalDate.of(2026, 7, 1));
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("dueDateFrom", "2026-06-01")
                         .param("dueDateTo", "2026-06-30"))
                 .andExpect(status().isOk())
@@ -349,6 +379,7 @@ class TaskControllerTest {
         createTask("Too far task", today.plusDays(5));
 
         mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("dueFromToday", "true")
                         .param("dueDateTo", today.plusDays(3).toString()))
                 .andExpect(status().isOk())
@@ -369,6 +400,7 @@ class TaskControllerTest {
 
     private TaskResponse createTask(String title, LocalDate dueDate, Long assigneeId) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createTaskRequest(title, dueDate, assigneeId))))
                 .andExpect(status().isCreated())
@@ -413,10 +445,21 @@ class TaskControllerTest {
         return jwtService.generateToken(admin);
     }
 
+    private String userToken() {
+        User user = new User();
+        user.setId(998L);
+        user.setEmail("user@example.com");
+        user.setUsername("user");
+        user.setPassword(passwordEncoder.encode("password123"));
+        user.setRole(Role.USER);
+        return jwtService.generateToken(user);
+    }
+
     private void changeStatus(Long taskId, TaskStatus taskStatus) throws Exception {
         ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
         request.setStatus(taskStatus);
         mockMvc.perform(post("/api/tasks/{id}/status", taskId)
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
@@ -426,6 +469,7 @@ class TaskControllerTest {
         ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
         request.setPriority(priority);
         mockMvc.perform(post("/api/tasks/{id}/priority", taskId)
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());

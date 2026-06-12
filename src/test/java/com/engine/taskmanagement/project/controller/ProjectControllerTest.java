@@ -65,10 +65,17 @@ class ProjectControllerTest {
     }
 
     @Test
+    void getProjectsWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/projects"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createProjectReturnsCreatedProject() throws Exception {
         CreateProjectRequest request = createProjectRequest("Controller project", "Project API test");
 
         mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -83,6 +90,7 @@ class ProjectControllerTest {
         request.setDescription("Missing name");
 
         mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -95,6 +103,7 @@ class ProjectControllerTest {
         CreateProjectRequest request = createProjectRequest("Project", "a".repeat(251));
 
         mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -104,10 +113,12 @@ class ProjectControllerTest {
     void getAllProjectsReturnsOnlyActiveProjects() throws Exception {
         ProjectResponse activeProject = createProject("Active project", "Visible");
         ProjectResponse deletedProject = createProject("Deleted project", "Hidden");
-        mockMvc.perform(delete("/api/projects/{id}", deletedProject.getId()))
+        mockMvc.perform(delete("/api/projects/{id}", deletedProject.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/projects"))
+        mockMvc.perform(get("/api/projects")
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(activeProject.getId()))
                 .andExpect(jsonPath("$.content[0].name").value("Active project"))
@@ -120,6 +131,7 @@ class ProjectControllerTest {
         createProject("Roadmap", "Planning");
 
         mockMvc.perform(get("/api/projects")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("search", "invoice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -134,6 +146,7 @@ class ProjectControllerTest {
         createProjectEntity("Other project", otherOwner);
 
         mockMvc.perform(get("/api/projects")
+                        .header("Authorization", "Bearer " + userToken())
                         .param("ownerId", owner.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -148,6 +161,7 @@ class ProjectControllerTest {
         request.setDescription("New description");
 
         mockMvc.perform(put("/api/projects/{id}", project.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -163,6 +177,7 @@ class ProjectControllerTest {
         request.setDescription("Missing name");
 
         mockMvc.perform(put("/api/projects/{id}", project.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -175,6 +190,7 @@ class ProjectControllerTest {
         request.setDescription("New description");
 
         mockMvc.perform(put("/api/projects/{id}", 999L)
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -185,7 +201,8 @@ class ProjectControllerTest {
         ProjectResponse project = createProject("Delete me", "Soft delete");
         TaskResponse task = createTask("Child task", project.getId());
 
-        mockMvc.perform(delete("/api/projects/{id}", project.getId()))
+        mockMvc.perform(delete("/api/projects/{id}", project.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
         assertThat(projectRepository.findByIdAndDeletedAtIsNull(project.getId())).isEmpty();
@@ -196,15 +213,18 @@ class ProjectControllerTest {
     @Test
     void restoreProjectReturnsProjectToActiveList() throws Exception {
         ProjectResponse project = createProject("Restore me", "Soft deleted first");
-        mockMvc.perform(delete("/api/projects/{id}", project.getId()))
+        mockMvc.perform(delete("/api/projects/{id}", project.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(post("/api/projects/{id}/restore", project.getId()))
+        mockMvc.perform(post("/api/projects/{id}/restore", project.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(project.getId()))
                 .andExpect(jsonPath("$.name").value("Restore me"));
 
-        mockMvc.perform(get("/api/projects"))
+        mockMvc.perform(get("/api/projects")
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(project.getId()));
     }
@@ -230,7 +250,8 @@ class ProjectControllerTest {
 
     @Test
     void deleteMissingProjectReturnsNotFound() throws Exception {
-        mockMvc.perform(delete("/api/projects/{id}", 999L))
+        mockMvc.perform(delete("/api/projects/{id}", 999L)
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNotFound());
     }
 
@@ -241,10 +262,12 @@ class ProjectControllerTest {
         TaskResponse projectTask = createTask("Project task", project.getId());
         TaskResponse deletedProjectTask = createTask("Deleted project task", project.getId());
         createTask("Other project task", otherProject.getId());
-        mockMvc.perform(delete("/api/tasks/{id}", deletedProjectTask.getId()))
+        mockMvc.perform(delete("/api/tasks/{id}", deletedProjectTask.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId()))
+        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(projectTask.getId()))
@@ -260,6 +283,7 @@ class ProjectControllerTest {
         createTask("Other project todo task", otherProject.getId(), TaskStatus.TODO);
 
         mockMvc.perform(get("/api/projects/{id}/tasks", project.getId())
+                        .header("Authorization", "Bearer " + userToken())
                         .param("status", "TODO")
                         .param("projectId", otherProject.getId().toString()))
                 .andExpect(status().isOk())
@@ -270,22 +294,26 @@ class ProjectControllerTest {
 
     @Test
     void getProjectTasksForMissingProjectReturnsNotFound() throws Exception {
-        mockMvc.perform(get("/api/projects/{id}/tasks", 999L))
+        mockMvc.perform(get("/api/projects/{id}/tasks", 999L)
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void getProjectTasksForSoftDeletedProjectReturnsNotFound() throws Exception {
         ProjectResponse project = createProject("Deleted project", "No tasks should be listed");
-        mockMvc.perform(delete("/api/projects/{id}", project.getId()))
+        mockMvc.perform(delete("/api/projects/{id}", project.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId()))
+        mockMvc.perform(get("/api/projects/{id}/tasks", project.getId())
+                        .header("Authorization", "Bearer " + userToken()))
                 .andExpect(status().isNotFound());
     }
 
     private ProjectResponse createProject(String name, String description) throws Exception {
         String content = mockMvc.perform(post("/api/projects")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createProjectRequest(name, description))))
                 .andExpect(status().isCreated())
@@ -308,6 +336,7 @@ class ProjectControllerTest {
         request.setStatus(status);
 
         String content = mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -348,5 +377,15 @@ class ProjectControllerTest {
         admin.setPassword(passwordEncoder.encode("password123"));
         admin.setRole(Role.ADMIN);
         return jwtService.generateToken(admin);
+    }
+
+    private String userToken() {
+        User user = new User();
+        user.setId(998L);
+        user.setEmail("user@example.com");
+        user.setUsername("user");
+        user.setPassword(passwordEncoder.encode("password123"));
+        user.setRole(Role.USER);
+        return jwtService.generateToken(user);
     }
 }
