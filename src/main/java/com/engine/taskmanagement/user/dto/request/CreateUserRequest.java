@@ -1,22 +1,18 @@
 package com.engine.taskmanagement.user.dto.request;
 
 import com.engine.taskmanagement.auth.enums.Role;
-import com.engine.taskmanagement.project.entity.Project;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @Setter
 public class CreateUserRequest {
     private String username;
 
-    @NotBlank(message = "Email is required" )
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
     private String email;
 
     @NotBlank(message = "Password is required")
@@ -25,6 +21,5 @@ public class CreateUserRequest {
     @NotBlank(message = "Confirm Password is required")
     private String confirmPassword;
 
-    @Enumerated(EnumType.STRING)
     private Role role;
 }
