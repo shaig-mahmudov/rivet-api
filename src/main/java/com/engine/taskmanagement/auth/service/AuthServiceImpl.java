@@ -22,17 +22,20 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
     public AuthServiceImpl(
             UserRepository userRepository,
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager
+            AuthenticationManager authenticationManager,
+            JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
     }
 
     @Override
@@ -47,10 +50,10 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole() == null ? Role.USER : request.getRole());
+        user.setRole(Role.USER);
         User savedUser = userRepository.save(user);
 
-        return new AuthResponse("Registration successful", userMapper.toResponse(savedUser));
+        return toAuthResponse("Registration successful", savedUser);
     }
 
     @Override
@@ -60,8 +63,18 @@ public class AuthServiceImpl implements AuthService {
         );
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("Invalid email or password"));
-        UserResponse response = userMapper.toResponse(user);
 
-        return new AuthResponse("Login successful", response);
+        return toAuthResponse("Login successful", user);
+    }
+
+    private AuthResponse toAuthResponse(String message, User user) {
+        UserResponse response = userMapper.toResponse(user);
+        return new AuthResponse(
+                message,
+                jwtService.generateToken(user),
+                "Bearer",
+                jwtService.getExpirationSeconds(),
+                response
+        );
     }
 }
