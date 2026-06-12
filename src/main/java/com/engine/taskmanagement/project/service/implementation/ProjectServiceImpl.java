@@ -56,7 +56,7 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = projectRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
 
-        project.markAsDeleted();
+        project.markAsDeletedWithTasks();
     }
 
     @Override

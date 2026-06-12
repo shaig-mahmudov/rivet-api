@@ -28,4 +28,11 @@ public class Project extends BaseEntity {
 
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tasks = new ArrayList<>();
+
+    public void markAsDeletedWithTasks() {
+        markAsDeleted();
+        tasks.stream()
+                .filter(task -> !task.isDeleted())
+                .forEach(Task::markAsDeleted);
+    }
 }
