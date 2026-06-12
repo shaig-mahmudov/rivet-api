@@ -3,11 +3,14 @@ package com.engine.taskmanagement.project.controller;
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
 import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
+import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
+import com.engine.taskmanagement.user.entity.User;
+import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,10 +45,14 @@ class ProjectControllerTest {
     @Autowired
     private TaskRepository taskRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
@@ -73,6 +80,16 @@ class ProjectControllerTest {
     }
 
     @Test
+    void createProjectWithTooLongDescriptionReturnsBadRequest() throws Exception {
+        CreateProjectRequest request = createProjectRequest("Project", "a".repeat(251));
+
+        mockMvc.perform(post("/api/projects")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void getAllProjectsReturnsOnlyActiveProjects() throws Exception {
         ProjectResponse activeProject = createProject("Active project", "Visible");
         ProjectResponse deletedProject = createProject("Deleted project", "Hidden");
@@ -84,6 +101,32 @@ class ProjectControllerTest {
                 .andExpect(jsonPath("$.content[0].id").value(activeProject.getId()))
                 .andExpect(jsonPath("$.content[0].name").value("Active project"))
                 .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void getProjectsFiltersBySearch() throws Exception {
+        ProjectResponse invoiceProject = createProject("Invoice rollout", "Internal tools");
+        createProject("Roadmap", "Planning");
+
+        mockMvc.perform(get("/api/projects")
+                        .param("search", "invoice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(invoiceProject.getId()));
+    }
+
+    @Test
+    void getProjectsFiltersByOwnerId() throws Exception {
+        User owner = createUser("owner@example.com");
+        User otherOwner = createUser("other-owner@example.com");
+        Project ownerProject = createProjectEntity("Owner project", owner);
+        createProjectEntity("Other project", otherOwner);
+
+        mockMvc.perform(get("/api/projects")
+                        .param("ownerId", owner.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(ownerProject.getId()));
     }
 
     @Test
@@ -103,6 +146,18 @@ class ProjectControllerTest {
     }
 
     @Test
+    void updateProjectWithoutNameReturnsBadRequest() throws Exception {
+        ProjectResponse project = createProject("Old name", "Old description");
+        UpdateProjectRequest request = new UpdateProjectRequest();
+        request.setDescription("Missing name");
+
+        mockMvc.perform(put("/api/projects/{id}", project.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void updateMissingProjectReturnsNotFound() throws Exception {
         UpdateProjectRequest request = new UpdateProjectRequest();
         request.setName("New name");
@@ -117,12 +172,14 @@ class ProjectControllerTest {
     @Test
     void deleteProjectSoftDeletesProject() throws Exception {
         ProjectResponse project = createProject("Delete me", "Soft delete");
+        TaskResponse task = createTask("Child task", project.getId());
 
         mockMvc.perform(delete("/api/projects/{id}", project.getId()))
                 .andExpect(status().isNoContent());
 
         assertThat(projectRepository.findByIdAndDeletedAtIsNull(project.getId())).isEmpty();
         assertThat(projectRepository.findByIdAndDeletedAtIsNotNull(project.getId())).isPresent();
+        assertThat(taskRepository.findByIdAndDeletedAtIsNotNull(task.getId())).isPresent();
     }
 
     @Test
@@ -246,5 +303,20 @@ class ProjectControllerTest {
         request.setName(name);
         request.setDescription(description);
         return request;
+    }
+
+    private User createUser(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setUsername(email.substring(0, email.indexOf('@')));
+        return userRepository.save(user);
+    }
+
+    private Project createProjectEntity(String name, User owner) {
+        Project project = new Project();
+        project.setName(name);
+        project.setDescription("Project description");
+        project.setOwner(owner);
+        return projectRepository.save(project);
     }
 }
