@@ -1,9 +1,11 @@
 package com.engine.taskmanagement.user.controller;
 
 import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.service.JwtService;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.dto.request.UpdateUserRequest;
 import com.engine.taskmanagement.user.dto.response.UserResponse;
+import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +38,9 @@ class UserControllerTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private JwtService jwtService;
+
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
@@ -46,6 +51,7 @@ class UserControllerTest {
         CreateUserRequest request = createUserRequest("user@example.com");
 
         mockMvc.perform(post("/api/users")
+                        .header("Authorization", "Bearer " + adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -58,14 +64,20 @@ class UserControllerTest {
         UserResponse activeUser = createUser("active@example.com");
         UserResponse deletedUser = createUser("deleted@example.com");
         mockMvc.perform(delete("/api/users/{id}", deletedUser.getId()))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(delete("/api/users/{id}", deletedUser.getId())
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/users"))
+        mockMvc.perform(get("/api/users")
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(activeUser.getId()))
                 .andExpect(jsonPath("$[0].email").value("active@example.com"));
 
-        mockMvc.perform(get("/api/users/deleted"))
+        mockMvc.perform(get("/api/users/deleted")
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(deletedUser.getId()));
     }
@@ -79,6 +91,7 @@ class UserControllerTest {
         request.setRole(Role.ADMIN);
 
         mockMvc.perform(put("/api/users/{id}", user.getId())
+                        .header("Authorization", "Bearer " + adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -90,10 +103,12 @@ class UserControllerTest {
     @Test
     void restoreUserReturnsUserToActiveList() throws Exception {
         UserResponse user = createUser("restore@example.com");
-        mockMvc.perform(delete("/api/users/{id}", user.getId()))
+        mockMvc.perform(delete("/api/users/{id}", user.getId())
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(post("/api/users/{id}/restore", user.getId()))
+        mockMvc.perform(post("/api/users/{id}/restore", user.getId())
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(user.getId()));
 
@@ -102,6 +117,7 @@ class UserControllerTest {
 
     private UserResponse createUser(String email) throws Exception {
         String content = mockMvc.perform(post("/api/users")
+                        .header("Authorization", "Bearer " + adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createUserRequest(email))))
                 .andExpect(status().isCreated())
@@ -119,5 +135,14 @@ class UserControllerTest {
         request.setPassword("password123");
         request.setConfirmPassword("password123");
         return request;
+    }
+
+    private String adminToken() {
+        User admin = new User();
+        admin.setId(999L);
+        admin.setEmail("admin@example.com");
+        admin.setUsername("admin");
+        admin.setRole(Role.ADMIN);
+        return jwtService.generateToken(admin);
     }
 }

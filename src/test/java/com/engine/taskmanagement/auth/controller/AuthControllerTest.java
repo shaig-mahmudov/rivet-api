@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.auth.controller;
 
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
+import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,12 +44,16 @@ class AuthControllerTest {
     @Test
     void registerCreatesUserWithEncodedPassword() throws Exception {
         CreateUserRequest request = createUserRequest("new-user@example.com", "password123");
+        request.setRole(Role.ADMIN);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.message").value("Registration successful"))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").isNumber())
                 .andExpect(jsonPath("$.user.email").value("new-user@example.com"))
                 .andExpect(jsonPath("$.user.role").value("USER"));
 
@@ -71,6 +76,8 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Login successful"))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.user.email").value("login@example.com"));
     }
 

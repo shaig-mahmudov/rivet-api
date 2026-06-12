@@ -5,6 +5,8 @@ import com.engine.taskmanagement.project.dto.request.UpdateProjectRequest;
 import com.engine.taskmanagement.project.dto.response.ProjectResponse;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
+import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.service.JwtService;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,7 +29,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,6 +50,12 @@ class ProjectControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
@@ -206,7 +214,7 @@ class ProjectControllerTest {
         ProjectResponse project = createProject("Hard delete me", "Remove forever");
 
         mockMvc.perform(delete("/api/projects/{id}/hard", project.getId())
-                        .with(user("admin@example.com").roles("ADMIN")))
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isNoContent());
 
         assertThat(projectRepository.findById(project.getId())).isEmpty();
@@ -330,5 +338,15 @@ class ProjectControllerTest {
         project.setDescription("Project description");
         project.setOwner(owner);
         return projectRepository.save(project);
+    }
+
+    private String adminToken() {
+        User admin = new User();
+        admin.setId(999L);
+        admin.setEmail("admin@example.com");
+        admin.setUsername("admin");
+        admin.setPassword(passwordEncoder.encode("password123"));
+        admin.setRole(Role.ADMIN);
+        return jwtService.generateToken(admin);
     }
 }

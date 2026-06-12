@@ -9,6 +9,8 @@ import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
+import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.service.JwtService;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -30,7 +33,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,6 +51,12 @@ class TaskControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
@@ -186,7 +194,7 @@ class TaskControllerTest {
         TaskResponse task = createTask("Hard delete me");
 
         mockMvc.perform(delete("/api/tasks/{id}/hard", task.getId())
-                        .with(user("admin@example.com").roles("ADMIN")))
+                        .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isNoContent());
 
         assertThat(taskRepository.findById(task.getId())).isEmpty();
@@ -393,6 +401,16 @@ class TaskControllerTest {
         user.setEmail(email);
         user.setUsername(email.substring(0, email.indexOf('@')));
         return userRepository.save(user);
+    }
+
+    private String adminToken() {
+        User admin = new User();
+        admin.setId(999L);
+        admin.setEmail("admin@example.com");
+        admin.setUsername("admin");
+        admin.setPassword(passwordEncoder.encode("password123"));
+        admin.setRole(Role.ADMIN);
+        return jwtService.generateToken(admin);
     }
 
     private void changeStatus(Long taskId, TaskStatus taskStatus) throws Exception {
