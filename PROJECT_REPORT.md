@@ -4,7 +4,7 @@ Generated: 2026-06-08
 
 ## Summary
 
-TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, project/task search and filtering, project-specific task listing, pagination, Flyway migrations, and integration-style service/controller tests are in place.
+TaskManagement is a Spring Boot backend API for managing projects and tasks. The project is now a strong task/project MVP candidate: CRUD, soft delete/restore, project/task search and filtering, project-specific task listing, pagination, JWT-protected project/task APIs, Flyway migrations, and integration-style service/controller tests are in place.
 
 Latest migration review found and fixed two important issues:
 
@@ -71,6 +71,8 @@ The project/task relationship now includes a project-specific task listing endpo
   - due from today with an upper due date
 - Project and task pagination and sorting.
 - Optional task-to-project assignment through `projectId`.
+- Project and task APIs require authenticated JWT access.
+- Hard delete and user-management APIs require authenticated `ADMIN` JWT access.
 - Service and controller tests for project/task flows.
 - Search and due-date filter tests.
 - MySQL and PostgreSQL migration schema validation tests.
@@ -78,8 +80,8 @@ The project/task relationship now includes a project-specific task listing endpo
 
 ## Latest Verification
 
-- `.\mvnw.cmd test` passed on 2026-06-08.
-- Test result: 84 tests, 0 failures, 0 errors, 0 skipped.
+- `.\mvnw.cmd test` passed on 2026-06-12.
+- Test result: 86 tests, 0 failures, 0 errors, 0 skipped.
 - The Windows Maven wrapper was fixed so it can start Maven when `.m2` is a normal directory.
 - Migration validation confirmed that both V1 migration files apply successfully and match the current JPA mappings under H2 MySQL/PostgreSQL compatibility modes.
 
@@ -105,6 +107,7 @@ The project/task relationship now includes a project-specific task listing endpo
 
 ## Risks And Gaps
 
+- Project and task endpoints are authenticated through Spring Security JWT authorization.
 - Hard delete and user-management endpoints are admin-only through Spring Security JWT authorization.
 - Public registration always creates a `USER`; clients cannot self-register as `ADMIN`.
 - Task and project description validation are now capped at 250 characters, which fits the `VARCHAR(255)` migration.

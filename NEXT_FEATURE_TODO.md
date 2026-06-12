@@ -8,7 +8,7 @@ The project is a working backend MVP candidate for project and task management.
 
 Latest verification:
 
-- [x] `.\mvnw.cmd test` passed on 2026-06-12 with 84 tests, 0 failures.
+- [x] `.\mvnw.cmd test` passed on 2026-06-12 with 86 tests, 0 failures.
 
 Done:
 
@@ -52,6 +52,7 @@ Done:
 - [x] Field-level validation error details
 - [x] Basic auth register/login
 - [x] Stateless JWT Bearer authentication
+- [x] Project and task endpoints require authenticated JWT access
 - [x] BCrypt password hashing
 - [x] Admin-only hard delete endpoints
 - [x] Basic user CRUD
@@ -79,6 +80,8 @@ Done:
 - [ ] Filter tasks by `dueFromToday=true&dueDateTo=YYYY-MM-DD`.
 - [ ] Soft delete and restore a task.
 - [ ] Soft delete and restore a project.
+- [ ] Verify anonymous project/task requests return `401`.
+- [ ] Verify project/task requests succeed with `Authorization: Bearer <accessToken>`.
 
 ## Recently Completed Feature
 

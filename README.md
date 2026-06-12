@@ -32,6 +32,7 @@ TaskManagement is a Spring Boot backend API for managing projects, tasks, users,
 - User create, list, update, soft delete, and restore
 - Auth register/login with BCrypt password hashing
 - Stateless JWT Bearer authentication
+- Project and task endpoints require authenticated JWT access
 - Admin-only hard delete endpoints
 - Field-level validation error details
 - Environment-based database configuration
@@ -108,7 +109,7 @@ Register:
 
 Register always creates a `USER`. Admin users should be created through a trusted admin flow or database seed.
 
-Login/register responses include an `accessToken`. Protected endpoints require:
+Login/register responses include an `accessToken`. Project and task endpoints require:
 
 ```text
 Authorization: Bearer <accessToken>
@@ -237,6 +238,7 @@ Change priority:
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
 - `User.role` is stored as a string enum to match the migration schema.
 - Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
+- Project and task endpoints require an authenticated JWT.
 - Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
 - Set a strong `JWT_SECRET` outside source control before running outside local development.
 - Next recommended feature: add refresh tokens and a trusted admin bootstrap flow.
