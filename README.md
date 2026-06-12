@@ -1,8 +1,6 @@
 # TaskManagement
 
-TaskManagement is a Spring Boot backend API for managing projects and tasks.
-
-The current MVP focus is project/task management. User and auth packages exist, but they are not ready yet.
+TaskManagement is a Spring Boot backend API for managing projects, tasks, users, and basic authentication.
 
 ## Stack
 
@@ -10,6 +8,7 @@ The current MVP focus is project/task management. User and auth packages exist, 
 - Spring Boot 4
 - Spring Web MVC
 - Spring Data JPA
+- Spring Security
 - Bean Validation
 - Flyway
 - MySQL for development
@@ -25,10 +24,15 @@ The current MVP focus is project/task management. User and auth packages exist, 
 - Task create, list, get by id, update, partial update, soft delete, hard delete, restore
 - Task status and priority update endpoints
 - Task search by title and description
-- Task filtering by status, priority, project id, and due date
+- Task filtering by status, priority, project id, assignee id, and due date
 - Project-specific task listing with `GET /api/projects/{id}/tasks`
 - Task pagination and sorting
 - Assign tasks to projects with `projectId`
+- Assign tasks to users with `assigneeId`
+- User create, list, update, soft delete, and restore
+- Auth register/login with BCrypt password hashing
+- Admin-only hard delete endpoints
+- Field-level validation error details
 - Environment-based database configuration
 - Flyway migrations for MySQL and PostgreSQL
 - Migration validation tests for MySQL and PostgreSQL schemas
@@ -80,6 +84,39 @@ http://localhost:8080/swagger-ui/index.html
 Tests use the `test` profile with H2. The regular service/controller tests use Hibernate `create-drop`; dedicated migration validation tests apply the MySQL and PostgreSQL Flyway migrations in H2 compatibility modes and then run Hibernate schema validation.
 
 ## Main Endpoints
+
+### Auth
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+```
+
+Register:
+
+```json
+{
+  "username": "admin",
+  "email": "admin@example.com",
+  "password": "password123",
+  "confirmPassword": "password123",
+  "role": "ADMIN"
+}
+```
+
+Hard delete endpoints require an authenticated `ADMIN` user with HTTP Basic auth.
+
+### Users
+
+```text
+POST   /api/users
+GET    /api/users
+GET    /api/users/deleted
+GET    /api/users/{id}
+PUT    /api/users/{id}
+DELETE /api/users/{id}
+POST   /api/users/{id}/restore
+```
 
 ### Projects
 
@@ -135,6 +172,7 @@ Create task:
 ```json
 {
   "projectId": 1,
+  "assigneeId": 1,
   "title": "Write MVP tests",
   "description": "Cover task and project flows",
   "priority": "HIGH",
@@ -158,6 +196,7 @@ GET /api/tasks?search=invoice
 GET /api/tasks?status=TODO
 GET /api/tasks?priority=HIGH
 GET /api/tasks?projectId=1
+GET /api/tasks?assigneeId=1
 GET /api/tasks?status=TODO&priority=HIGH&page=0&size=10&sort=createdAt,desc
 GET /api/tasks?dueDateFrom=2026-06-01&dueDateTo=2026-06-30
 GET /api/tasks?dueFromToday=true&dueDateTo=2026-06-30
@@ -188,5 +227,5 @@ Change priority:
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
 - `User.role` is stored as a string enum to match the migration schema.
 - Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
-- Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
-- Next recommended feature: validation error response improvements, then auth/security.
+- Hard delete endpoints require an authenticated `ADMIN` user.
+- Next recommended feature: replace HTTP Basic with token-based auth and tighten role management.

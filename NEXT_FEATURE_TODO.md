@@ -8,7 +8,7 @@ The project is a working backend MVP candidate for project and task management.
 
 Latest verification:
 
-- [x] `.\mvnw.cmd test` passed on 2026-06-12 with 70 tests, 0 failures.
+- [x] `.\mvnw.cmd test` passed on 2026-06-12 with 84 tests, 0 failures.
 
 Done:
 
@@ -49,6 +49,13 @@ Done:
 - [x] Project description validation limit
 - [x] Project search and owner filter tests
 - [x] Project soft delete also soft-deletes active child tasks
+- [x] Field-level validation error details
+- [x] Basic auth register/login
+- [x] BCrypt password hashing
+- [x] Admin-only hard delete endpoints
+- [x] Basic user CRUD
+- [x] Task assignment to users with `assigneeId`
+- [x] Task filtering by assignee id
 
 ## Manual Check
 
@@ -127,25 +134,28 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 
 ## Fix Before Bigger Features
 
-Note: Hard delete will be admin-only later, but it stays public for easier development right now.
+Note: Hard delete is now admin-only through Spring Security HTTP Basic.
 
 - [x] Add project description validation limit.
 - [ ] Add a container-based MySQL/PostgreSQL migration test if database containers become part of the project.
 - [x] Decide what should happen to tasks when a project is soft deleted.
 - [x] Add project search and owner filter tests.
-- [ ] Keep user/auth code out of MVP docs until it is implemented.
-- [ ] Protect hard delete endpoints when auth/admin roles are implemented.
+- [x] Keep user/auth code out of MVP docs until it is implemented.
+- [x] Protect hard delete endpoints when auth/admin roles are implemented.
 
 ## After Project Task Listing
 
-- [ ] Improve validation error response details.
+- [x] Improve validation error response details.
 - [ ] Add Swagger descriptions/examples.
-- [ ] Add basic user CRUD.
-- [ ] Add register/login.
-- [ ] Add password hashing.
-- [ ] Add authorization.
-- [ ] Make hard delete admin-only.
-- [ ] Add task assignment to users.
+- [x] Add basic user CRUD.
+- [x] Add register/login.
+- [x] Add password hashing.
+- [x] Add authorization.
+- [x] Make hard delete admin-only.
+- [x] Add task assignment to users.
+- [ ] Replace HTTP Basic with token-based auth.
+- [ ] Tighten admin role creation before production.
+- [ ] Add project ownership assignment.
 
 ## Not For First MVP
 

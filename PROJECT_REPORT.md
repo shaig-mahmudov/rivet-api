@@ -79,17 +79,16 @@ The project/task relationship now includes a project-specific task listing endpo
 ## Latest Verification
 
 - `.\mvnw.cmd test` passed on 2026-06-08.
-- Test result: 70 tests, 0 failures, 0 errors, 0 skipped.
+- Test result: 84 tests, 0 failures, 0 errors, 0 skipped.
 - The Windows Maven wrapper was fixed so it can start Maven when `.m2` is a normal directory.
 - Migration validation confirmed that both V1 migration files apply successfully and match the current JPA mappings under H2 MySQL/PostgreSQL compatibility modes.
 
 ## What Is Not Finished
 
-- User API is not implemented.
-- Register/login are not implemented.
-- Password hashing is not implemented.
-- Authorization is not implemented.
-- Hard delete endpoints are intentionally still public for easier development.
+- Token-based auth is not implemented; the current auth foundation uses HTTP Basic.
+- Refresh tokens/session management are not implemented.
+- Project ownership is modeled, but no API flow assigns project owners yet.
+- Role management is still MVP-level and should be tightened before production.
 - Project ownership and task assignment to users are modeled in the database/entities, but no API flow uses them yet.
 
 ## Strengths
@@ -107,7 +106,7 @@ The project/task relationship now includes a project-specific task listing endpo
 
 ## Risks And Gaps
 
-- Hard delete should become admin-only before real deployment.
+- Hard delete endpoints are now admin-only through Spring Security.
 - The user/auth packages currently look like future scaffolding, not usable features.
 - Task and project description validation are now capped at 250 characters, which fits the `VARCHAR(255)` migration.
 - Project soft delete now also soft-deletes active child tasks. Project restore intentionally does not auto-restore tasks, so previously deleted tasks are not accidentally resurrected.
@@ -156,10 +155,9 @@ Implemented scope:
 
 ## Suggested Roadmap
 
-1. Validation error response improvements.
-2. Swagger examples/descriptions.
-3. User registration and login.
-4. Password hashing and authorization.
-5. Admin-only hard delete.
-6. User assignment for tasks.
-7. Frontend or API client.
+1. Replace HTTP Basic with token-based auth.
+2. Tighten role management so users cannot self-register as admin in production.
+3. Add Swagger examples/descriptions.
+4. Add project ownership assignment.
+5. Add assignee-focused task list examples to Swagger.
+6. Frontend or API client.
