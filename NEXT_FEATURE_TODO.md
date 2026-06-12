@@ -8,7 +8,7 @@ The project is a working backend MVP candidate for project and task management.
 
 Latest verification:
 
-- [x] `.\mvnw.cmd test` passed on 2026-06-08 with 63 tests, 0 failures.
+- [x] `.\mvnw.cmd test` passed on 2026-06-12 with 70 tests, 0 failures.
 
 Done:
 
@@ -46,6 +46,9 @@ Done:
 - [x] Project task listing controller tests
 - [x] Search filter tests
 - [x] Due-date filter tests
+- [x] Project description validation limit
+- [x] Project search and owner filter tests
+- [x] Project soft delete also soft-deletes active child tasks
 
 ## Manual Check
 
@@ -126,17 +129,15 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 
 Note: Hard delete will be admin-only later, but it stays public for easier development right now.
 
-- [ ] Add project description validation limit.
+- [x] Add project description validation limit.
 - [ ] Add a container-based MySQL/PostgreSQL migration test if database containers become part of the project.
-- [ ] Decide what should happen to tasks when a project is soft deleted.
-- [ ] Add project search and owner filter tests.
+- [x] Decide what should happen to tasks when a project is soft deleted.
+- [x] Add project search and owner filter tests.
 - [ ] Keep user/auth code out of MVP docs until it is implemented.
 - [ ] Protect hard delete endpoints when auth/admin roles are implemented.
 
 ## After Project Task Listing
 
-- [ ] Add project description validation.
-- [ ] Add project filter tests.
 - [ ] Improve validation error response details.
 - [ ] Add Swagger descriptions/examples.
 - [ ] Add basic user CRUD.

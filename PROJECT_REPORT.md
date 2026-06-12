@@ -79,7 +79,7 @@ The project/task relationship now includes a project-specific task listing endpo
 ## Latest Verification
 
 - `.\mvnw.cmd test` passed on 2026-06-08.
-- Test result: 63 tests, 0 failures, 0 errors, 0 skipped.
+- Test result: 70 tests, 0 failures, 0 errors, 0 skipped.
 - The Windows Maven wrapper was fixed so it can start Maven when `.m2` is a normal directory.
 - Migration validation confirmed that both V1 migration files apply successfully and match the current JPA mappings under H2 MySQL/PostgreSQL compatibility modes.
 
@@ -109,10 +109,10 @@ The project/task relationship now includes a project-specific task listing endpo
 
 - Hard delete should become admin-only before real deployment.
 - The user/auth packages currently look like future scaffolding, not usable features.
-- Task description validation is now capped at 250 characters, which fits the `VARCHAR(255)` migration. Project description still has no explicit validation limit.
-- Project soft delete does not automatically soft delete child tasks. This is acceptable for now, but the expected product behavior should be decided.
+- Task and project description validation are now capped at 250 characters, which fits the `VARCHAR(255)` migration.
+- Project soft delete now also soft-deletes active child tasks. Project restore intentionally does not auto-restore tasks, so previously deleted tasks are not accidentally resurrected.
 - Project restore does not need special handling yet, but task restore correctly blocks restore when its project is deleted.
-- Project search/owner filtering is implemented, but filter-specific tests should still be added.
+- Project search/owner filtering is implemented and covered by service/controller tests.
 - Existing local databases created before Flyway may need reset or baseline.
 - Migration validation currently uses H2 compatibility modes. Real MySQL and PostgreSQL startup should still be checked before deployment.
 - Spring warns that returning `PageImpl` directly may produce unstable JSON structure. It is fine for the MVP, but a DTO page wrapper would be cleaner later.
@@ -149,19 +149,17 @@ Implemented scope:
 
 1. Keep tests green with `.\mvnw.cmd test` before and after each feature.
 2. Manually test search and due-date filters in Swagger.
-3. Add project description validation.
-4. Add project filter tests.
+3. Improve validation error response details.
+4. Add Swagger examples/descriptions.
 5. Move hard delete behind admin authorization when auth is ready.
 6. Build user/auth after the task/project API feels stable.
 
 ## Suggested Roadmap
 
-1. Project description validation.
-2. Project filter tests.
-3. Validation error response improvements.
-4. Swagger examples/descriptions.
-5. User registration and login.
-6. Password hashing and authorization.
-7. Admin-only hard delete.
-8. User assignment for tasks.
-9. Frontend or API client.
+1. Validation error response improvements.
+2. Swagger examples/descriptions.
+3. User registration and login.
+4. Password hashing and authorization.
+5. Admin-only hard delete.
+6. User assignment for tasks.
+7. Frontend or API client.

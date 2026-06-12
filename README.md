@@ -189,4 +189,4 @@ Change priority:
 - `User.role` is stored as a string enum to match the migration schema.
 - Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
 - Hard delete endpoints are useful for local testing, but should be protected or removed before a real release.
-- Next recommended feature: project description validation.
+- Next recommended feature: validation error response improvements, then auth/security.
