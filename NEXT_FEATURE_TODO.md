@@ -51,6 +51,7 @@ Done:
 - [x] Project soft delete also soft-deletes active child tasks
 - [x] Field-level validation error details
 - [x] Basic auth register/login
+- [x] Stateless JWT Bearer authentication
 - [x] BCrypt password hashing
 - [x] Admin-only hard delete endpoints
 - [x] Basic user CRUD
@@ -134,7 +135,7 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 
 ## Fix Before Bigger Features
 
-Note: Hard delete is now admin-only through Spring Security HTTP Basic.
+Note: Hard delete is now admin-only through Spring Security JWT authorization.
 
 - [x] Add project description validation limit.
 - [ ] Add a container-based MySQL/PostgreSQL migration test if database containers become part of the project.
@@ -153,9 +154,11 @@ Note: Hard delete is now admin-only through Spring Security HTTP Basic.
 - [x] Add authorization.
 - [x] Make hard delete admin-only.
 - [x] Add task assignment to users.
-- [ ] Replace HTTP Basic with token-based auth.
-- [ ] Tighten admin role creation before production.
+- [x] Replace HTTP Basic with token-based auth.
+- [x] Tighten admin role creation before production.
 - [ ] Add project ownership assignment.
+- [ ] Add refresh tokens/session rotation.
+- [ ] Add a trusted admin bootstrap flow.
 
 ## Not For First MVP
 

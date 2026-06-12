@@ -31,6 +31,7 @@ TaskManagement is a Spring Boot backend API for managing projects, tasks, users,
 - Assign tasks to users with `assigneeId`
 - User create, list, update, soft delete, and restore
 - Auth register/login with BCrypt password hashing
+- Stateless JWT Bearer authentication
 - Admin-only hard delete endpoints
 - Field-level validation error details
 - Environment-based database configuration
@@ -49,6 +50,8 @@ SERVER_PORT=8080
 DB_URL=jdbc:mysql://localhost:3306/task_management
 DB_USERNAME=your_username
 DB_PASSWORD=your_password
+JWT_SECRET=replace_with_at_least_32_bytes_of_random_secret
+JWT_EXPIRATION_SECONDS=3600
 ```
 
 Create the MySQL database before running the app:
@@ -99,12 +102,19 @@ Register:
   "username": "admin",
   "email": "admin@example.com",
   "password": "password123",
-  "confirmPassword": "password123",
-  "role": "ADMIN"
+  "confirmPassword": "password123"
 }
 ```
 
-Hard delete endpoints require an authenticated `ADMIN` user with HTTP Basic auth.
+Register always creates a `USER`. Admin users should be created through a trusted admin flow or database seed.
+
+Login/register responses include an `accessToken`. Protected endpoints require:
+
+```text
+Authorization: Bearer <accessToken>
+```
+
+Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
 
 ### Users
 
@@ -227,5 +237,6 @@ Change priority:
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
 - `User.role` is stored as a string enum to match the migration schema.
 - Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
-- Hard delete endpoints require an authenticated `ADMIN` user.
-- Next recommended feature: replace HTTP Basic with token-based auth and tighten role management.
+- Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
+- Set a strong `JWT_SECRET` outside source control before running outside local development.
+- Next recommended feature: add refresh tokens and a trusted admin bootstrap flow.

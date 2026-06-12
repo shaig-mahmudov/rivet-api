@@ -74,7 +74,7 @@ The project/task relationship now includes a project-specific task listing endpo
 - Service and controller tests for project/task flows.
 - Search and due-date filter tests.
 - MySQL and PostgreSQL migration schema validation tests.
-- User/auth package placeholders and database tables. Role storage is now explicitly string-based to match the migrations.
+- User/auth APIs are implemented with BCrypt password hashing and stateless JWT Bearer authentication. Role storage is explicitly string-based to match the migrations.
 
 ## Latest Verification
 
@@ -85,11 +85,10 @@ The project/task relationship now includes a project-specific task listing endpo
 
 ## What Is Not Finished
 
-- Token-based auth is not implemented; the current auth foundation uses HTTP Basic.
 - Refresh tokens/session management are not implemented.
+- A trusted admin bootstrap flow is not implemented; admin users should be seeded or created through a trusted operational process.
 - Project ownership is modeled, but no API flow assigns project owners yet.
-- Role management is still MVP-level and should be tightened before production.
-- Project ownership and task assignment to users are modeled in the database/entities, but no API flow uses them yet.
+- Project ownership is modeled, but no API flow assigns project owners yet.
 
 ## Strengths
 
@@ -106,8 +105,8 @@ The project/task relationship now includes a project-specific task listing endpo
 
 ## Risks And Gaps
 
-- Hard delete endpoints are now admin-only through Spring Security.
-- The user/auth packages currently look like future scaffolding, not usable features.
+- Hard delete and user-management endpoints are admin-only through Spring Security JWT authorization.
+- Public registration always creates a `USER`; clients cannot self-register as `ADMIN`.
 - Task and project description validation are now capped at 250 characters, which fits the `VARCHAR(255)` migration.
 - Project soft delete now also soft-deletes active child tasks. Project restore intentionally does not auto-restore tasks, so previously deleted tasks are not accidentally resurrected.
 - Project restore does not need special handling yet, but task restore correctly blocks restore when its project is deleted.
@@ -148,15 +147,15 @@ Implemented scope:
 
 1. Keep tests green with `.\mvnw.cmd test` before and after each feature.
 2. Manually test search and due-date filters in Swagger.
-3. Improve validation error response details.
-4. Add Swagger examples/descriptions.
-5. Move hard delete behind admin authorization when auth is ready.
-6. Build user/auth after the task/project API feels stable.
+3. Add Swagger examples/descriptions.
+4. Add refresh tokens/session rotation.
+5. Add a trusted admin bootstrap flow.
+6. Add project ownership assignment.
 
 ## Suggested Roadmap
 
-1. Replace HTTP Basic with token-based auth.
-2. Tighten role management so users cannot self-register as admin in production.
+1. Add refresh tokens/session rotation.
+2. Add a trusted admin bootstrap flow.
 3. Add Swagger examples/descriptions.
 4. Add project ownership assignment.
 5. Add assignee-focused task list examples to Swagger.
