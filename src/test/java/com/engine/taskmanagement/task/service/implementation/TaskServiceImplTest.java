@@ -14,6 +14,8 @@ import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
+import com.engine.taskmanagement.user.entity.User;
+import com.engine.taskmanagement.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,10 +41,14 @@ class TaskServiceImplTest {
     @Autowired
     private ProjectRepository projectRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
@@ -58,6 +64,30 @@ class TaskServiceImplTest {
         assertThat(response.getPriority()).isEqualTo(TaskPriority.MEDIUM);
         assertThat(response.getStatus()).isEqualTo(TaskStatus.TODO);
         assertThat(taskRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void createTaskAssignsActiveUser() {
+        User assignee = createUser("assignee@example.com");
+        CreateTaskRequest request = createTaskRequest("Assigned task");
+        request.setAssigneeId(assignee.getId());
+
+        TaskResponse response = taskService.createTask(request);
+
+        assertThat(response.getAssigneeId()).isEqualTo(assignee.getId());
+    }
+
+    @Test
+    void createTaskThrowsWhenAssigneeIsDeleted() {
+        User assignee = createUser("deleted-assignee@example.com");
+        assignee.markAsDeleted();
+        userRepository.save(assignee);
+        CreateTaskRequest request = createTaskRequest("Assigned task");
+        request.setAssigneeId(assignee.getId());
+
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Active user not found");
     }
 
     @Test
@@ -197,6 +227,20 @@ class TaskServiceImplTest {
         assertThat(taskService.getTasks(null, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .contains(mediumTask.getId());
+    }
+
+    @Test
+    void getTasksFiltersByAssigneeId() {
+        User assignee = createUser("assignee@example.com");
+        User otherAssignee = createUser("other-assignee@example.com");
+        TaskResponse assignedTask = taskService.createTask(createTaskRequest("Assigned task", null, assignee.getId()));
+        taskService.createTask(createTaskRequest("Other assigned task", null, otherAssignee.getId()));
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setAssigneeId(assignee.getId());
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(assignedTask.getId());
     }
 
     @Test
@@ -368,6 +412,12 @@ class TaskServiceImplTest {
         return request;
     }
 
+    private CreateTaskRequest createTaskRequest(String title, Long projectId, Long assigneeId) {
+        CreateTaskRequest request = createTaskRequest(title, projectId);
+        request.setAssigneeId(assigneeId);
+        return request;
+    }
+
     private CreateTaskRequest createTaskRequest(String title, String description, LocalDate dueDate) {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
@@ -381,6 +431,13 @@ class TaskServiceImplTest {
         project.setName(name);
         project.setDescription("Project description");
         return projectRepository.save(project);
+    }
+
+    private User createUser(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setUsername(email.substring(0, email.indexOf('@')));
+        return userRepository.save(user);
     }
 
     private void changeStatus(Long taskId, TaskStatus status) {

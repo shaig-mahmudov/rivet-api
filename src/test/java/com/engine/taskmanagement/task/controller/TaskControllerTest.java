@@ -9,6 +9,8 @@ import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
+import com.engine.taskmanagement.user.entity.User;
+import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -44,9 +47,13 @@ class TaskControllerTest {
     @Autowired
     private TaskRepository taskRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     @Test
@@ -178,10 +185,47 @@ class TaskControllerTest {
     void hardDeleteTaskRemovesTask() throws Exception {
         TaskResponse task = createTask("Hard delete me");
 
-        mockMvc.perform(delete("/api/tasks/{id}/hard", task.getId()))
+        mockMvc.perform(delete("/api/tasks/{id}/hard", task.getId())
+                        .with(user("admin@example.com").roles("ADMIN")))
                 .andExpect(status().isNoContent());
 
         assertThat(taskRepository.findById(task.getId())).isEmpty();
+    }
+
+    @Test
+    void hardDeleteTaskWithoutAdminReturnsUnauthorized() throws Exception {
+        TaskResponse task = createTask("Hard delete me");
+
+        mockMvc.perform(delete("/api/tasks/{id}/hard", task.getId()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void createTaskWithAssigneeReturnsAssigneeId() throws Exception {
+        User assignee = createUser("assignee@example.com");
+        CreateTaskRequest request = createTaskRequest("Assigned task");
+        request.setAssigneeId(assignee.getId());
+
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.assigneeId").value(assignee.getId()));
+    }
+
+    @Test
+    void getTasksFiltersByAssigneeId() throws Exception {
+        User assignee = createUser("assignee@example.com");
+        User otherAssignee = createUser("other-assignee@example.com");
+        TaskResponse assignedTask = createTask("Assigned task", null, assignee.getId());
+        createTask("Other assigned task", null, otherAssignee.getId());
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("assigneeId", assignee.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(assignedTask.getId()))
+                .andExpect(jsonPath("$.content[0].assigneeId").value(assignee.getId()));
     }
 
     @Test
@@ -312,9 +356,13 @@ class TaskControllerTest {
     }
 
     private TaskResponse createTask(String title, LocalDate dueDate) throws Exception {
+        return createTask(title, dueDate, null);
+    }
+
+    private TaskResponse createTask(String title, LocalDate dueDate, Long assigneeId) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createTaskRequest(title, dueDate))))
+                        .content(objectMapper.writeValueAsString(createTaskRequest(title, dueDate, assigneeId))))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -328,11 +376,23 @@ class TaskControllerTest {
     }
 
     private CreateTaskRequest createTaskRequest(String title, LocalDate dueDate) {
+        return createTaskRequest(title, dueDate, null);
+    }
+
+    private CreateTaskRequest createTaskRequest(String title, LocalDate dueDate, Long assigneeId) {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
         request.setDescription("Original description");
         request.setDueDate(dueDate);
+        request.setAssigneeId(assigneeId);
         return request;
+    }
+
+    private User createUser(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setUsername(email.substring(0, email.indexOf('@')));
+        return userRepository.save(user);
     }
 
     private void changeStatus(Long taskId, TaskStatus taskStatus) throws Exception {

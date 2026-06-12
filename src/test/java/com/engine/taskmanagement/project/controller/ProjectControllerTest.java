@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -76,7 +77,9 @@ class ProjectControllerTest {
         mockMvc.perform(post("/api/projects")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.details.name").value("Project Name is required"));
     }
 
     @Test
@@ -202,10 +205,19 @@ class ProjectControllerTest {
     void hardDeleteProjectRemovesProject() throws Exception {
         ProjectResponse project = createProject("Hard delete me", "Remove forever");
 
-        mockMvc.perform(delete("/api/projects/{id}/hard", project.getId()))
+        mockMvc.perform(delete("/api/projects/{id}/hard", project.getId())
+                        .with(user("admin@example.com").roles("ADMIN")))
                 .andExpect(status().isNoContent());
 
         assertThat(projectRepository.findById(project.getId())).isEmpty();
+    }
+
+    @Test
+    void hardDeleteProjectWithoutAdminReturnsUnauthorized() throws Exception {
+        ProjectResponse project = createProject("Hard delete me", "Remove forever");
+
+        mockMvc.perform(delete("/api/projects/{id}/hard", project.getId()))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
