@@ -8,6 +8,7 @@ import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.auth.service.JwtService;
@@ -50,6 +51,9 @@ class TaskControllerTest {
     private TaskRepository taskRepository;
 
     @Autowired
+    private ProjectRepository projectRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -61,6 +65,7 @@ class TaskControllerTest {
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
+        projectRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -235,7 +240,7 @@ class TaskControllerTest {
         request.setAssigneeId(assignee.getId());
 
         mockMvc.perform(post("/api/tasks")
-                        .header("Authorization", "Bearer " + userToken())
+                        .header("Authorization", "Bearer " + adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -246,11 +251,11 @@ class TaskControllerTest {
     void getTasksFiltersByAssigneeId() throws Exception {
         User assignee = createUser("assignee@example.com");
         User otherAssignee = createUser("other-assignee@example.com");
-        TaskResponse assignedTask = createTask("Assigned task", null, assignee.getId());
-        createTask("Other assigned task", null, otherAssignee.getId());
+        TaskResponse assignedTask = createTask("Assigned task", null, assignee.getId(), adminToken());
+        createTask("Other assigned task", null, otherAssignee.getId(), adminToken());
 
         mockMvc.perform(get("/api/tasks")
-                        .header("Authorization", "Bearer " + userToken())
+                        .header("Authorization", "Bearer " + adminToken())
                         .param("assigneeId", assignee.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -399,8 +404,12 @@ class TaskControllerTest {
     }
 
     private TaskResponse createTask(String title, LocalDate dueDate, Long assigneeId) throws Exception {
+        return createTask(title, dueDate, assigneeId, userToken());
+    }
+
+    private TaskResponse createTask(String title, LocalDate dueDate, Long assigneeId, String token) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
-                        .header("Authorization", "Bearer " + userToken())
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createTaskRequest(title, dueDate, assigneeId))))
                 .andExpect(status().isCreated())
@@ -429,29 +438,27 @@ class TaskControllerTest {
     }
 
     private User createUser(String email) {
-        User user = new User();
-        user.setEmail(email);
-        user.setUsername(email.substring(0, email.indexOf('@')));
-        return userRepository.save(user);
+        return createUser(email, Role.USER);
+    }
+
+    private User createUser(String email, Role role) {
+        return userRepository.findByEmail(email).orElseGet(() -> {
+            User user = new User();
+            user.setEmail(email);
+            user.setUsername(email.substring(0, email.indexOf('@')));
+            user.setPassword(passwordEncoder.encode("password123"));
+            user.setRole(role);
+            return userRepository.save(user);
+        });
     }
 
     private String adminToken() {
-        User admin = new User();
-        admin.setId(999L);
-        admin.setEmail("admin@example.com");
-        admin.setUsername("admin");
-        admin.setPassword(passwordEncoder.encode("password123"));
-        admin.setRole(Role.ADMIN);
+        User admin = createUser("admin@example.com", Role.ADMIN);
         return jwtService.generateToken(admin);
     }
 
     private String userToken() {
-        User user = new User();
-        user.setId(998L);
-        user.setEmail("user@example.com");
-        user.setUsername("user");
-        user.setPassword(passwordEncoder.encode("password123"));
-        user.setRole(Role.USER);
+        User user = createUser("user@example.com", Role.USER);
         return jwtService.generateToken(user);
     }
 

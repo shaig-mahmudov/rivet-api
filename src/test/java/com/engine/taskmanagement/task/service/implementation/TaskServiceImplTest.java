@@ -1,5 +1,7 @@
 package com.engine.taskmanagement.task.service.implementation;
 
+import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
@@ -21,9 +23,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,11 +50,15 @@ class TaskServiceImplTest {
     @Autowired
     private UserRepository userRepository;
 
+    private User currentUser;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
+        currentUser = createUser("current@example.com");
+        authenticateAs(currentUser);
     }
 
     @Test
@@ -68,13 +78,23 @@ class TaskServiceImplTest {
 
     @Test
     void createTaskAssignsActiveUser() {
+        CreateTaskRequest request = createTaskRequest("Assigned task");
+        request.setAssigneeId(currentUser.getId());
+
+        TaskResponse response = taskService.createTask(request);
+
+        assertThat(response.getAssigneeId()).isEqualTo(currentUser.getId());
+    }
+
+    @Test
+    void createStandaloneTaskRejectsOtherAssigneeForRegularUser() {
         User assignee = createUser("assignee@example.com");
         CreateTaskRequest request = createTaskRequest("Assigned task");
         request.setAssigneeId(assignee.getId());
 
-        TaskResponse response = taskService.createTask(request);
-
-        assertThat(response.getAssigneeId()).isEqualTo(assignee.getId());
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("assign standalone tasks");
     }
 
     @Test
@@ -167,6 +187,8 @@ class TaskServiceImplTest {
     @Test
     void hardDeleteTaskRemovesTask() {
         TaskResponse task = taskService.createTask(createTaskRequest("Remove me"));
+        User admin = createUser("hard-delete-admin@example.com", Role.ADMIN);
+        authenticateAs(admin);
 
         taskService.hardDeleteTask(task.getId());
 
@@ -233,8 +255,9 @@ class TaskServiceImplTest {
     void getTasksFiltersByAssigneeId() {
         User assignee = createUser("assignee@example.com");
         User otherAssignee = createUser("other-assignee@example.com");
-        TaskResponse assignedTask = taskService.createTask(createTaskRequest("Assigned task", null, assignee.getId()));
-        taskService.createTask(createTaskRequest("Other assigned task", null, otherAssignee.getId()));
+        Project project = createProject("Owned project");
+        TaskResponse assignedTask = taskService.createTask(createTaskRequest("Assigned task", project.getId(), assignee.getId()));
+        taskService.createTask(createTaskRequest("Other assigned task", project.getId(), otherAssignee.getId()));
         FilterTaskRequest request = new FilterTaskRequest();
         request.setAssigneeId(assignee.getId());
 
@@ -430,14 +453,30 @@ class TaskServiceImplTest {
         Project project = new Project();
         project.setName(name);
         project.setDescription("Project description");
+        project.setOwner(currentUser);
         return projectRepository.save(project);
     }
 
     private User createUser(String email) {
+        return createUser(email, Role.USER);
+    }
+
+    private User createUser(String email, Role role) {
         User user = new User();
         user.setEmail(email);
         user.setUsername(email.substring(0, email.indexOf('@')));
+        user.setRole(role);
         return userRepository.save(user);
+    }
+
+    private void authenticateAs(User user) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        user.getEmail(),
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                )
+        );
     }
 
     private void changeStatus(Long taskId, TaskStatus status) {

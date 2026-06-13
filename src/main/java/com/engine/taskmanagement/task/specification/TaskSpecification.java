@@ -2,6 +2,8 @@ package com.engine.taskmanagement.task.specification;
 
 import com.engine.taskmanagement.task.dto.request.FilterTaskRequest;
 import com.engine.taskmanagement.task.entity.Task;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -12,11 +14,39 @@ import java.util.List;
 public class TaskSpecification {
 
     public static Specification<Task> filter(FilterTaskRequest request) {
+        return buildFilter(request, false, null);
+    }
+
+    public static Specification<Task> visibleToUser(FilterTaskRequest request, Long userId) {
+        return buildFilter(request, false, userId);
+    }
+
+    public static Specification<Task> deletedVisibleToUser(Long userId) {
+        return buildFilter(null, true, userId);
+    }
+
+    public static Specification<Task> deleted() {
+        return buildFilter(null, true, null);
+    }
+
+    private static Specification<Task> buildFilter(FilterTaskRequest request, boolean deleted, Long visibleUserId) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             LocalDate today = LocalDate.now();
 
-            predicates.add(criteriaBuilder.isNull(root.get("deletedAt")));
+            predicates.add(deleted
+                    ? criteriaBuilder.isNotNull(root.get("deletedAt"))
+                    : criteriaBuilder.isNull(root.get("deletedAt")));
+
+            if (visibleUserId != null) {
+                Join<Object, Object> assignee = root.join("assignee", JoinType.LEFT);
+                Join<Object, Object> project = root.join("project", JoinType.LEFT);
+                Join<Object, Object> owner = project.join("owner", JoinType.LEFT);
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.equal(assignee.get("id"), visibleUserId),
+                        criteriaBuilder.equal(owner.get("id"), visibleUserId)
+                ));
+            }
 
             if (request == null) {
                 return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

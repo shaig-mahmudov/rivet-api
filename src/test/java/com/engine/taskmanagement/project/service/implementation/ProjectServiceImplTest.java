@@ -1,5 +1,7 @@
 package com.engine.taskmanagement.project.service.implementation;
 
+import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
 import com.engine.taskmanagement.project.dto.request.FilterProjectRequest;
@@ -17,7 +19,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,11 +45,15 @@ class ProjectServiceImplTest {
     @Autowired
     private UserRepository userRepository;
 
+    private User currentUser;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
+        currentUser = createUser("current@example.com");
+        authenticateAs(currentUser);
     }
 
     @Test
@@ -96,6 +107,8 @@ class ProjectServiceImplTest {
 
     @Test
     void getProjectsFiltersByOwnerId() {
+        User admin = createUser("admin@example.com", Role.ADMIN);
+        authenticateAs(admin);
         User owner = createUser("owner@example.com");
         User otherOwner = createUser("other-owner@example.com");
         Project ownerProject = createProjectEntity("Owner project", owner);
@@ -106,6 +119,18 @@ class ProjectServiceImplTest {
         assertThat(projectService.getProjects(request, Pageable.unpaged()).getContent())
                 .extracting(ProjectResponse::getId)
                 .containsExactly(ownerProject.getId());
+    }
+
+    @Test
+    void getProjectsRejectsOtherOwnerForRegularUser() {
+        User otherOwner = createUser("other-owner@example.com");
+        createProjectEntity("Other project", otherOwner);
+        FilterProjectRequest request = new FilterProjectRequest();
+        request.setOwnerId(otherOwner.getId());
+
+        assertThatThrownBy(() -> projectService.getProjects(request, Pageable.unpaged()))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("own projects");
     }
 
     @Test
@@ -187,6 +212,8 @@ class ProjectServiceImplTest {
         ProjectResponse project = projectService.createProject(
                 createProjectRequest("Hard delete", "Remove forever")
         );
+        User admin = createUser("hard-delete-admin@example.com", Role.ADMIN);
+        authenticateAs(admin);
 
         projectService.hardDeleteProject(project.getId());
 
@@ -208,9 +235,14 @@ class ProjectServiceImplTest {
     }
 
     private User createUser(String email) {
+        return createUser(email, Role.USER);
+    }
+
+    private User createUser(String email, Role role) {
         User user = new User();
         user.setEmail(email);
         user.setUsername(email.substring(0, email.indexOf('@')));
+        user.setRole(role);
         return userRepository.save(user);
     }
 
@@ -228,5 +260,15 @@ class ProjectServiceImplTest {
         task.setDescription("Task description");
         task.setProject(project);
         return taskRepository.save(task);
+    }
+
+    private void authenticateAs(User user) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        user.getEmail(),
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                )
+        );
     }
 }

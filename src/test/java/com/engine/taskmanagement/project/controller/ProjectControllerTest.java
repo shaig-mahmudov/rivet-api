@@ -146,7 +146,7 @@ class ProjectControllerTest {
         createProjectEntity("Other project", otherOwner);
 
         mockMvc.perform(get("/api/projects")
-                        .header("Authorization", "Bearer " + userToken())
+                        .header("Authorization", "Bearer " + adminToken())
                         .param("ownerId", owner.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -355,10 +355,18 @@ class ProjectControllerTest {
     }
 
     private User createUser(String email) {
-        User user = new User();
-        user.setEmail(email);
-        user.setUsername(email.substring(0, email.indexOf('@')));
-        return userRepository.save(user);
+        return createUser(email, Role.USER);
+    }
+
+    private User createUser(String email, Role role) {
+        return userRepository.findByEmail(email).orElseGet(() -> {
+            User user = new User();
+            user.setEmail(email);
+            user.setUsername(email.substring(0, email.indexOf('@')));
+            user.setPassword(passwordEncoder.encode("password123"));
+            user.setRole(role);
+            return userRepository.save(user);
+        });
     }
 
     private Project createProjectEntity(String name, User owner) {
@@ -370,22 +378,12 @@ class ProjectControllerTest {
     }
 
     private String adminToken() {
-        User admin = new User();
-        admin.setId(999L);
-        admin.setEmail("admin@example.com");
-        admin.setUsername("admin");
-        admin.setPassword(passwordEncoder.encode("password123"));
-        admin.setRole(Role.ADMIN);
+        User admin = createUser("admin@example.com", Role.ADMIN);
         return jwtService.generateToken(admin);
     }
 
     private String userToken() {
-        User user = new User();
-        user.setId(998L);
-        user.setEmail("user@example.com");
-        user.setUsername("user");
-        user.setPassword(passwordEncoder.encode("password123"));
-        user.setRole(Role.USER);
+        User user = createUser("user@example.com", Role.USER);
         return jwtService.generateToken(user);
     }
 }
