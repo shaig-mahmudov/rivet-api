@@ -1,7 +1,7 @@
 package com.engine.taskmanagement.auth.controller;
 
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
-import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,8 +43,7 @@ class AuthControllerTest {
 
     @Test
     void registerCreatesUserWithEncodedPassword() throws Exception {
-        CreateUserRequest request = createUserRequest("new-user@example.com", "password123");
-        request.setRole(Role.ADMIN);
+        RegisterRequest request = registerRequest("new-user@example.com", "password123");
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,6 +89,15 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    private RegisterRequest registerRequest(String email, String password) {
+        RegisterRequest request = new RegisterRequest();
+        request.setUsername(email.substring(0, email.indexOf('@')));
+        request.setEmail(email);
+        request.setPassword(password);
+        request.setConfirmPassword(password);
+        return request;
     }
 
     private CreateUserRequest createUserRequest(String email, String password) {

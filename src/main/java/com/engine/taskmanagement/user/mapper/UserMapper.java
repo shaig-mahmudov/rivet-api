@@ -1,5 +1,6 @@
 package com.engine.taskmanagement.user.mapper;
 
+import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.user.dto.request.ChangeRoleRequest;
 import com.engine.taskmanagement.user.dto.request.ChangeUsernameRequest;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
@@ -20,6 +21,14 @@ public interface UserMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     User toEntity(CreateUserRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "role", ignore = true)
+    @Mapping(target = "projects", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    User toEntity(RegisterRequest request);
 
     UserResponse toResponse(User user);
 

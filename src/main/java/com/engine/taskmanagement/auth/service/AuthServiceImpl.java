@@ -1,11 +1,11 @@
 package com.engine.taskmanagement.auth.service;
 
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
+import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.auth.dto.response.AuthResponse;
 import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.DuplicateResourceException;
-import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.dto.response.UserResponse;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.mapper.UserMapper;
@@ -39,7 +39,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthResponse register(CreateUserRequest request) {
+    public AuthResponse register(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new BadRequestException("Password and confirm password must match");
         }

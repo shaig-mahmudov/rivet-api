@@ -1,9 +1,9 @@
 package com.engine.taskmanagement.auth.controller;
 
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
+import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.auth.dto.response.AuthResponse;
 import com.engine.taskmanagement.auth.service.AuthService;
-import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +23,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
