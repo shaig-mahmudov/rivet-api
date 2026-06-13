@@ -9,6 +9,8 @@ import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
+import com.engine.taskmanagement.task.enums.Severity;
+import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
@@ -47,6 +49,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse createTask(CreateTaskRequest request) {
         User currentUser = currentUserService.getCurrentUser();
+        validateTaskClassification(request.getType(), request.getSeverity());
         Task task = taskMapper.toEntity(request);
 
         if (request.getProjectId() != null) {
@@ -126,6 +129,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         taskMapper.updateEntity(request, currentTask);
+        validateTaskClassification(currentTask.getType(), currentTask.getSeverity());
         Task updatedTask = taskRepository.save(currentTask);
         return taskMapper.toResponse(updatedTask);
     }
@@ -151,6 +155,7 @@ public class TaskServiceImpl implements TaskService {
             currentTask.setAssignee(assignee);
         }
         taskMapper.partialUpdateEntity(request, currentTask);
+        validateTaskClassification(currentTask.getType(), currentTask.getSeverity());
         Task updatedTask = taskRepository.save((currentTask));
         return taskMapper.toResponse(updatedTask);
     }
@@ -233,6 +238,15 @@ public class TaskServiceImpl implements TaskService {
     private User findActiveUser(Long userId) {
         return userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Active user not found"));
+    }
+
+    private void validateTaskClassification(TaskType type, Severity severity) {
+        if (type == null) {
+            throw new BadRequestException("Task type is required");
+        }
+        if ((TaskType.INCIDENT.equals(type) || TaskType.RELIABILITY.equals(type)) && severity == null) {
+            throw new BadRequestException("Severity is required for incident and reliability tasks");
+        }
     }
 
     private void requireTaskAccess(Task task, User currentUser) {

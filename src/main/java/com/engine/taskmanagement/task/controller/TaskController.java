@@ -59,7 +59,7 @@ public class TaskController {
     @PatchMapping("/{id}")
     public ResponseEntity<TaskResponse> partialUpdateTask(
             @PathVariable Long id,
-            @RequestBody PartialUpdateTaskRequest request) {
+            @Valid @RequestBody PartialUpdateTaskRequest request) {
 
         TaskResponse response = taskService.partialUpdateTask(id, request);
         return ResponseEntity.ok(response);

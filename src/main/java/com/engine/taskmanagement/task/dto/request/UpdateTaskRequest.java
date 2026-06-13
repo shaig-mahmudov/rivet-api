@@ -1,7 +1,9 @@
 package com.engine.taskmanagement.task.dto.request;
 
+import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.task.enums.TaskType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,6 +25,17 @@ public class UpdateTaskRequest {
 
     @Size(max = 250, message = "Description cannot exceed 250 characters")
     private String description;
+
+    @NotNull(message = "Task type is required")
+    private TaskType type;
+
+    private Severity severity;
+
+    @Size(max = 1000, message = "Technical Context cannot exceed 1000 characters")
+    private String technicalContext;
+
+    @Size(max = 1000, message = "Expected Outcome cannot exceed 1000 characters")
+    private String expectedOutcome;
 
     @NotNull
     private TaskPriority priority;

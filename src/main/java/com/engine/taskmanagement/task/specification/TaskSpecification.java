@@ -82,6 +82,18 @@ public class TaskSpecification {
                 );
             }
 
+            if (request.getType() != null) {
+                predicates.add(
+                        criteriaBuilder.equal(root.get("type"), request.getType())
+                );
+            }
+
+            if (request.getSeverity() != null) {
+                predicates.add(
+                        criteriaBuilder.equal(root.get("severity"), request.getSeverity())
+                );
+            }
+
             if (request.getProjectId() != null) {
                 predicates.add(
                         criteriaBuilder.equal(root.get("project").get("id"), request.getProjectId())

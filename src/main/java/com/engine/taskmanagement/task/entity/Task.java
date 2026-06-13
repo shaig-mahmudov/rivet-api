@@ -2,8 +2,10 @@ package com.engine.taskmanagement.task.entity;
 
 import com.engine.taskmanagement.common.entity.BaseEntity;
 import com.engine.taskmanagement.project.entity.Project;
+import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -31,6 +33,19 @@ public class Task extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TaskStatus status = TaskStatus.TODO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskType type;
+
+    @Enumerated(EnumType.STRING)
+    private Severity severity;
+
+    @Column(length = 1000)
+    private String technicalContext;
+
+    @Column(length = 1000)
+    private String expectedOutcome;
 
     private LocalDate dueDate;
 
