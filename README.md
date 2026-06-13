@@ -43,7 +43,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 
 ## Setup
 
-Create a local `.env` file in the project root. Do not commit it.
+Create a local `.env` file in the project root. Do not commit it. You can start from `.env.example`.
 
 ```env
 SPRING_PROFILES_ACTIVE=dev
@@ -59,6 +59,32 @@ Create the MySQL database before running the app:
 
 ```sql
 CREATE DATABASE task_management;
+```
+
+## Docker Compose
+
+Run the API with MySQL:
+
+```bash
+docker compose up --build
+```
+
+API:
+
+```text
+http://localhost:8080
+```
+
+Stop and keep the database volume:
+
+```bash
+docker compose down
+```
+
+Stop and remove the database volume:
+
+```bash
+docker compose down -v
 ```
 
 ## Run
@@ -237,8 +263,10 @@ Change priority:
 - Prod profile uses PostgreSQL migrations.
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
 - `User.role` is stored as a string enum to match the migration schema.
-- Project owner filtering is implemented for the modeled `owner_id`, but no API flow assigns project owners yet.
+- New projects are owned by the authenticated user.
+- Regular users can access their own projects, plus tasks assigned to them or owned through their projects. Admin users can access all projects and tasks.
 - Project and task endpoints require an authenticated JWT.
 - Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
+- Public registration does not accept a role and always creates a `USER`; admin user creation remains available through the admin-only user API.
 - Set a strong `JWT_SECRET` outside source control before running outside local development.
 - Next recommended feature: add refresh tokens and a trusted admin bootstrap flow.
