@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.task.service.implementation;
 
 import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.entity.Project;
@@ -12,8 +13,10 @@ import com.engine.taskmanagement.task.dto.request.FilterTaskRequest;
 import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
 import com.engine.taskmanagement.user.entity.User;
@@ -66,14 +69,62 @@ class TaskServiceImplTest {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle("Write tests");
         request.setDescription("Cover task service");
+        request.setType(TaskType.TEST);
 
         TaskResponse response = taskService.createTask(request);
 
         assertThat(response.getId()).isNotNull();
         assertThat(response.getTitle()).isEqualTo("Write tests");
+        assertThat(response.getType()).isEqualTo(TaskType.TEST);
         assertThat(response.getPriority()).isEqualTo(TaskPriority.MEDIUM);
         assertThat(response.getStatus()).isEqualTo(TaskStatus.TODO);
         assertThat(taskRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void createTaskSavesTaskTypeAndTechnicalContext() {
+        CreateTaskRequest request = createTaskRequest("Add refresh token rotation");
+        request.setType(TaskType.FEATURE);
+        request.setTechnicalContext("Spring Security JWT authentication module");
+        request.setExpectedOutcome("Old refresh tokens become invalid after successful refresh.");
+
+        TaskResponse response = taskService.createTask(request);
+
+        assertThat(response.getType()).isEqualTo(TaskType.FEATURE);
+        assertThat(response.getSeverity()).isNull();
+        assertThat(response.getTechnicalContext()).isEqualTo("Spring Security JWT authentication module");
+        assertThat(response.getExpectedOutcome()).isEqualTo("Old refresh tokens become invalid after successful refresh.");
+    }
+
+    @Test
+    void createTaskThrowsWhenTypeIsMissing() {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("Missing type");
+        request.setDescription("Type is required");
+
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Task type is required");
+    }
+
+    @Test
+    void createIncidentTaskRequiresSeverity() {
+        CreateTaskRequest request = createTaskRequest("Investigate production outage");
+        request.setType(TaskType.INCIDENT);
+
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Severity is required");
+    }
+
+    @Test
+    void createReliabilityTaskRequiresSeverity() {
+        CreateTaskRequest request = createTaskRequest("Fix duplicate order creation");
+        request.setType(TaskType.RELIABILITY);
+
+        assertThatThrownBy(() -> taskService.createTask(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Severity is required");
     }
 
     @Test
@@ -142,6 +193,10 @@ class TaskServiceImplTest {
         UpdateTaskRequest request = new UpdateTaskRequest();
         request.setTitle("New title");
         request.setDescription("New description");
+        request.setType(TaskType.REFACTOR);
+        request.setSeverity(Severity.LOW);
+        request.setTechnicalContext("Task service update path");
+        request.setExpectedOutcome("All editable task details are persisted");
         request.setPriority(TaskPriority.URGENT);
         request.setStatus(TaskStatus.IN_PROGRESS);
         request.setDueDate(LocalDate.now().plusDays(3));
@@ -150,6 +205,10 @@ class TaskServiceImplTest {
 
         assertThat(response.getTitle()).isEqualTo("New title");
         assertThat(response.getDescription()).isEqualTo("New description");
+        assertThat(response.getType()).isEqualTo(TaskType.REFACTOR);
+        assertThat(response.getSeverity()).isEqualTo(Severity.LOW);
+        assertThat(response.getTechnicalContext()).isEqualTo("Task service update path");
+        assertThat(response.getExpectedOutcome()).isEqualTo("All editable task details are persisted");
         assertThat(response.getPriority()).isEqualTo(TaskPriority.URGENT);
         assertThat(response.getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
         assertThat(response.getDueDate()).isEqualTo(request.getDueDate());
@@ -167,7 +226,19 @@ class TaskServiceImplTest {
         assertThat(response.getTitle()).isEqualTo("Patched title");
         assertThat(response.getPriority()).isEqualTo(TaskPriority.HIGH);
         assertThat(response.getDescription()).isEqualTo("Original description");
+        assertThat(response.getType()).isEqualTo(TaskType.FEATURE);
         assertThat(response.getStatus()).isEqualTo(TaskStatus.TODO);
+    }
+
+    @Test
+    void partialUpdateTaskRequiresSeverityWhenChangingToIncident() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Original title"));
+        PartialUpdateTaskRequest request = new PartialUpdateTaskRequest();
+        request.setType(TaskType.INCIDENT);
+
+        assertThatThrownBy(() -> taskService.partialUpdateTask(task.getId(), request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Severity is required");
     }
 
     @Test
@@ -249,6 +320,39 @@ class TaskServiceImplTest {
         assertThat(taskService.getTasks(null, Pageable.unpaged()).getContent())
                 .extracting(TaskResponse::getId)
                 .contains(mediumTask.getId());
+    }
+
+    @Test
+    void getTasksFiltersByType() {
+        TaskResponse featureTask = taskService.createTask(createTaskRequest("Feature task"));
+        CreateTaskRequest reliabilityRequest = createTaskRequest("Reliability task");
+        reliabilityRequest.setType(TaskType.RELIABILITY);
+        reliabilityRequest.setSeverity(Severity.CRITICAL);
+        taskService.createTask(reliabilityRequest);
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setType(TaskType.FEATURE);
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(featureTask.getId());
+    }
+
+    @Test
+    void getTasksFiltersBySeverity() {
+        CreateTaskRequest criticalRequest = createTaskRequest("Critical reliability task");
+        criticalRequest.setType(TaskType.RELIABILITY);
+        criticalRequest.setSeverity(Severity.CRITICAL);
+        TaskResponse criticalTask = taskService.createTask(criticalRequest);
+        CreateTaskRequest lowSeverityRequest = createTaskRequest("Low severity bug");
+        lowSeverityRequest.setType(TaskType.BUG);
+        lowSeverityRequest.setSeverity(Severity.LOW);
+        taskService.createTask(lowSeverityRequest);
+        FilterTaskRequest request = new FilterTaskRequest();
+        request.setSeverity(Severity.CRITICAL);
+
+        assertThat(taskService.getTasks(request, Pageable.unpaged()).getContent())
+                .extracting(TaskResponse::getId)
+                .containsExactly(criticalTask.getId());
     }
 
     @Test
@@ -445,6 +549,7 @@ class TaskServiceImplTest {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
         request.setDescription(description);
+        request.setType(TaskType.FEATURE);
         request.setDueDate(dueDate);
         return request;
     }

@@ -11,6 +11,7 @@ import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.project.service.abstraction.ProjectService;
 import com.engine.taskmanagement.task.entity.Task;
+import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.repository.UserRepository;
@@ -258,6 +259,7 @@ class ProjectServiceImplTest {
         Task task = new Task();
         task.setTitle(title);
         task.setDescription("Task description");
+        task.setType(TaskType.FEATURE);
         task.setProject(project);
         return taskRepository.save(task);
     }

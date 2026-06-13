@@ -6,8 +6,10 @@ import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.auth.enums.Role;
@@ -78,6 +80,8 @@ class TaskControllerTest {
     @Test
     void createTaskReturnsCreatedTask() throws Exception {
         CreateTaskRequest request = createTaskRequest("Controller task");
+        request.setTechnicalContext("Spring Security JWT authentication module");
+        request.setExpectedOutcome("Old refresh tokens become invalid after successful refresh.");
 
         mockMvc.perform(post("/api/tasks")
                         .header("Authorization", "Bearer " + userToken())
@@ -86,6 +90,9 @@ class TaskControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.title").value("Controller task"))
+                .andExpect(jsonPath("$.type").value("FEATURE"))
+                .andExpect(jsonPath("$.technicalContext").value("Spring Security JWT authentication module"))
+                .andExpect(jsonPath("$.expectedOutcome").value("Old refresh tokens become invalid after successful refresh."))
                 .andExpect(jsonPath("$.priority").value("MEDIUM"))
                 .andExpect(jsonPath("$.status").value("TODO"));
     }
@@ -100,6 +107,65 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createTaskWithoutTypeReturnsBadRequest() throws Exception {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setTitle("Missing type");
+        request.setDescription("Type is required");
+
+        mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.details.type").value("Task type is required"));
+    }
+
+    @Test
+    void createTaskWithInvalidTypeReturnsBadRequest() throws Exception {
+        String request = """
+                {
+                  "title": "Invalid type",
+                  "description": "Unsupported enum value",
+                  "type": "OPERATIONS"
+                }
+                """;
+
+        mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid request value"));
+    }
+
+    @Test
+    void createIncidentTaskWithoutSeverityReturnsBadRequest() throws Exception {
+        CreateTaskRequest request = createTaskRequest("Investigate outage");
+        request.setType(TaskType.INCIDENT);
+
+        mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Severity is required for incident and reliability tasks"));
+    }
+
+    @Test
+    void createReliabilityTaskWithoutSeverityReturnsBadRequest() throws Exception {
+        CreateTaskRequest request = createTaskRequest("Fix duplicate order creation");
+        request.setType(TaskType.RELIABILITY);
+
+        mockMvc.perform(post("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Severity is required for incident and reliability tasks"));
     }
 
     @Test
@@ -142,6 +208,10 @@ class TaskControllerTest {
         UpdateTaskRequest request = new UpdateTaskRequest();
         request.setTitle("New title");
         request.setDescription("New description");
+        request.setType(TaskType.REFACTOR);
+        request.setSeverity(Severity.LOW);
+        request.setTechnicalContext("Task controller update flow");
+        request.setExpectedOutcome("Task details reflect the new technical context");
         request.setPriority(TaskPriority.URGENT);
         request.setStatus(TaskStatus.IN_PROGRESS);
         request.setDueDate(LocalDate.now().plusDays(2));
@@ -154,6 +224,10 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.id").value(task.getId()))
                 .andExpect(jsonPath("$.title").value("New title"))
                 .andExpect(jsonPath("$.description").value("New description"))
+                .andExpect(jsonPath("$.type").value("REFACTOR"))
+                .andExpect(jsonPath("$.severity").value("LOW"))
+                .andExpect(jsonPath("$.technicalContext").value("Task controller update flow"))
+                .andExpect(jsonPath("$.expectedOutcome").value("Task details reflect the new technical context"))
                 .andExpect(jsonPath("$.priority").value("URGENT"))
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
     }
@@ -326,6 +400,43 @@ class TaskControllerTest {
     }
 
     @Test
+    void getTasksFiltersByType() throws Exception {
+        TaskResponse featureTask = createTask("Feature task");
+        CreateTaskRequest reliabilityRequest = createTaskRequest("Reliability task");
+        reliabilityRequest.setType(TaskType.RELIABILITY);
+        reliabilityRequest.setSeverity(Severity.CRITICAL);
+        createTask(reliabilityRequest, userToken());
+
+        mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
+                        .param("type", "FEATURE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(featureTask.getId()))
+                .andExpect(jsonPath("$.content[0].type").value("FEATURE"));
+    }
+
+    @Test
+    void getTasksFiltersBySeverity() throws Exception {
+        CreateTaskRequest criticalRequest = createTaskRequest("Critical reliability task");
+        criticalRequest.setType(TaskType.RELIABILITY);
+        criticalRequest.setSeverity(Severity.CRITICAL);
+        TaskResponse criticalTask = createTask(criticalRequest, userToken());
+        CreateTaskRequest lowSeverityRequest = createTaskRequest("Low severity bug");
+        lowSeverityRequest.setType(TaskType.BUG);
+        lowSeverityRequest.setSeverity(Severity.LOW);
+        createTask(lowSeverityRequest, userToken());
+
+        mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + userToken())
+                        .param("severity", "CRITICAL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(criticalTask.getId()))
+                .andExpect(jsonPath("$.content[0].severity").value("CRITICAL"));
+    }
+
+    @Test
     void getTasksFiltersByStatusAndPriority() throws Exception {
         TaskResponse todoHighTask = createTask("Todo high task");
         TaskResponse doneHighTask = createTask("Done high task");
@@ -408,10 +519,14 @@ class TaskControllerTest {
     }
 
     private TaskResponse createTask(String title, LocalDate dueDate, Long assigneeId, String token) throws Exception {
+        return createTask(createTaskRequest(title, dueDate, assigneeId), token);
+    }
+
+    private TaskResponse createTask(CreateTaskRequest request, String token) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createTaskRequest(title, dueDate, assigneeId))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -432,6 +547,7 @@ class TaskControllerTest {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setTitle(title);
         request.setDescription("Original description");
+        request.setType(TaskType.FEATURE);
         request.setDueDate(dueDate);
         request.setAssigneeId(assigneeId);
         return request;

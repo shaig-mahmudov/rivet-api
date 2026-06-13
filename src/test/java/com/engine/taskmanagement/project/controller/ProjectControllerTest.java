@@ -10,6 +10,7 @@ import com.engine.taskmanagement.auth.service.JwtService;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskStatus;
+import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.repository.UserRepository;
@@ -334,6 +335,7 @@ class ProjectControllerTest {
         request.setDescription("Original description");
         request.setProjectId(projectId);
         request.setStatus(status);
+        request.setType(TaskType.FEATURE);
 
         String content = mockMvc.perform(post("/api/tasks")
                         .header("Authorization", "Bearer " + userToken())
