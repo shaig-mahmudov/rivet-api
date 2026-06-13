@@ -24,7 +24,9 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task create, list, get by id, update, partial update, soft delete, hard delete, restore
 - Task status and priority update endpoints
 - Task search by title and description
-- Task filtering by status, priority, project id, assignee id, and due date
+- Task classification by type and optional severity
+- Task technical context and expected outcome fields
+- Task filtering by status, priority, type, severity, project id, assignee id, and due date
 - Project-specific task listing with `GET /api/projects/{id}/tasks`
 - Task pagination and sorting
 - Assign tasks to projects with `projectId`
@@ -212,9 +214,27 @@ Create task:
   "assigneeId": 1,
   "title": "Write MVP tests",
   "description": "Cover task and project flows",
+  "type": "FEATURE",
   "priority": "HIGH",
+  "severity": null,
+  "technicalContext": "Task and project service layer",
+  "expectedOutcome": "Core task and project flows are covered by automated tests.",
   "status": "TODO",
   "dueDate": "2026-06-10"
+}
+```
+
+Reliability task:
+
+```json
+{
+  "title": "Fix duplicate order creation under concurrent requests",
+  "description": "Multiple concurrent requests can create duplicate orders.",
+  "type": "RELIABILITY",
+  "priority": "HIGH",
+  "severity": "CRITICAL",
+  "technicalContext": "Order creation endpoint, idempotency key handling, database uniqueness constraints",
+  "expectedOutcome": "Only one order is created for the same user, SKU, and idempotency key."
 }
 ```
 
@@ -222,7 +242,8 @@ Minimal task:
 
 ```json
 {
-  "title": "Create prototype"
+  "title": "Create prototype",
+  "type": "CHORE"
 }
 ```
 
@@ -232,9 +253,11 @@ Filter and paginate tasks:
 GET /api/tasks?search=invoice
 GET /api/tasks?status=TODO
 GET /api/tasks?priority=HIGH
+GET /api/tasks?type=FEATURE
+GET /api/tasks?severity=CRITICAL
 GET /api/tasks?projectId=1
 GET /api/tasks?assigneeId=1
-GET /api/tasks?status=TODO&priority=HIGH&page=0&size=10&sort=createdAt,desc
+GET /api/tasks?status=TODO&type=FEATURE&priority=HIGH&page=0&size=10&sort=createdAt,desc
 GET /api/tasks?dueDateFrom=2026-06-01&dueDateTo=2026-06-30
 GET /api/tasks?dueFromToday=true&dueDateTo=2026-06-30
 GET /api/tasks?search=invoice&projectId=1&status=TODO
@@ -263,6 +286,9 @@ Change priority:
 - Prod profile uses PostgreSQL migrations.
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
 - `User.role` is stored as a string enum to match the migration schema.
+- `Task.type` is required. Valid values are `BUG`, `FEATURE`, `REFACTOR`, `INCIDENT`, `RELIABILITY`, `DOCUMENTATION`, `TEST`, and `CHORE`.
+- `Task.severity` is optional except for `INCIDENT` and `RELIABILITY` tasks. Valid values are `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`.
+- Priority and severity are separate: priority controls scheduling urgency, while severity describes problem impact.
 - New projects are owned by the authenticated user.
 - Regular users can access their own projects, plus tasks assigned to them or owned through their projects. Admin users can access all projects and tasks.
 - Project and task endpoints require an authenticated JWT.
