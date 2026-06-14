@@ -24,6 +24,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task create, list, get by id, update, partial update, soft delete, hard delete, restore
 - Task status and priority update endpoints
 - Task status transition endpoint with workflow validation and reason-required transitions
+- Task activity timeline for task creation and important task changes
 - Task search by title and description
 - Task classification by type and optional severity
 - Task technical context and expected outcome fields
@@ -206,6 +207,7 @@ POST   /api/tasks/{id}/restore
 POST   /api/tasks/{id}/status
 POST   /api/tasks/{id}/transitions
 POST   /api/tasks/{id}/priority
+GET    /api/tasks/{id}/timeline
 ```
 
 Create task:
@@ -329,6 +331,14 @@ Change priority:
   "priority": "URGENT"
 }
 ```
+
+Task timeline:
+
+```text
+GET /api/tasks/42/timeline?page=0&size=20
+```
+
+Task activity records are created by task workflows and are read-only from the public API.
 
 ## Notes
 
