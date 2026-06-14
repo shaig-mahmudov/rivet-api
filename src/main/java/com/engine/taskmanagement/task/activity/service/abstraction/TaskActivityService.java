@@ -24,5 +24,15 @@ public interface TaskActivityService {
 
     void recordSeverityChanged(Task task, User actor, Severity oldSeverity, Severity newSeverity);
 
+    void recordAcceptanceCriteriaAdded(Task task, User actor, String text);
+
+    void recordAcceptanceCriteriaUpdated(Task task, User actor, String oldText, String newText);
+
+    void recordAcceptanceCriteriaCompleted(Task task, User actor, String text);
+
+    void recordAcceptanceCriteriaReopened(Task task, User actor, String text);
+
+    void recordAcceptanceCriteriaDeleted(Task task, User actor, String text);
+
     Page<TaskActivityResponse> getTaskTimeline(Long taskId, Pageable pageable);
 }

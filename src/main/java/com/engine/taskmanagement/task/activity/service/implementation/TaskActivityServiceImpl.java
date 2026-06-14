@@ -134,6 +134,79 @@ public class TaskActivityServiceImpl implements TaskActivityService {
     }
 
     @Override
+    @Transactional
+    public void recordAcceptanceCriteriaAdded(Task task, User actor, String text) {
+        record(
+                task,
+                actor,
+                TaskActivityType.ACCEPTANCE_CRITERIA_ADDED,
+                null,
+                text,
+                "Acceptance criteria added",
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordAcceptanceCriteriaUpdated(Task task, User actor, String oldText, String newText) {
+        if (Objects.equals(oldText, newText)) {
+            return;
+        }
+        record(
+                task,
+                actor,
+                TaskActivityType.ACCEPTANCE_CRITERIA_UPDATED,
+                oldText,
+                newText,
+                "Acceptance criteria updated",
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordAcceptanceCriteriaCompleted(Task task, User actor, String text) {
+        record(
+                task,
+                actor,
+                TaskActivityType.ACCEPTANCE_CRITERIA_COMPLETED,
+                null,
+                text,
+                "Acceptance criteria completed",
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordAcceptanceCriteriaReopened(Task task, User actor, String text) {
+        record(
+                task,
+                actor,
+                TaskActivityType.ACCEPTANCE_CRITERIA_UPDATED,
+                "completed",
+                "open",
+                "Acceptance criteria reopened",
+                "text=" + text
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordAcceptanceCriteriaDeleted(Task task, User actor, String text) {
+        record(
+                task,
+                actor,
+                TaskActivityType.ACCEPTANCE_CRITERIA_UPDATED,
+                text,
+                null,
+                "Acceptance criteria deleted",
+                null
+        );
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<TaskActivityResponse> getTaskTimeline(Long taskId, Pageable pageable) {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(taskId)

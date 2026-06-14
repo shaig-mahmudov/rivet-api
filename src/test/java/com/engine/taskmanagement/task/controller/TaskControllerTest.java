@@ -8,6 +8,10 @@ import com.engine.taskmanagement.task.dto.request.TaskTransitionRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.activity.enums.TaskActivityType;
+import com.engine.taskmanagement.task.criteria.dto.request.BulkCreateAcceptanceCriteriaRequest;
+import com.engine.taskmanagement.task.criteria.dto.request.CreateAcceptanceCriteriaRequest;
+import com.engine.taskmanagement.task.criteria.dto.request.UpdateAcceptanceCriteriaRequest;
+import com.engine.taskmanagement.task.criteria.dto.response.AcceptanceCriteriaResponse;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -33,6 +37,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.nullValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -441,6 +446,118 @@ class TaskControllerTest {
     }
 
     @Test
+    void createAcceptanceCriteriaReturnsCreatedCriteria() throws Exception {
+        TaskResponse task = createTask("Criteria task");
+        CreateAcceptanceCriteriaRequest request = acceptanceCriteriaRequest("Old refresh token becomes invalid.");
+
+        mockMvc.perform(post("/api/tasks/{id}/acceptance-criteria", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.text").value("Old refresh token becomes invalid."))
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.createdById").isNumber());
+    }
+
+    @Test
+    void listAcceptanceCriteriaReturnsCriteriaForTask() throws Exception {
+        TaskResponse task = createTask("List criteria task");
+        TaskResponse otherTask = createTask("Other criteria task");
+        createAcceptanceCriteria(task.getId(), "First criterion");
+        createAcceptanceCriteria(otherTask.getId(), "Other criterion");
+
+        mockMvc.perform(get("/api/tasks/{id}/acceptance-criteria", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].text").value("First criterion"));
+    }
+
+    @Test
+    void updateAcceptanceCriteriaReturnsUpdatedCriteria() throws Exception {
+        TaskResponse task = createTask("Update criteria task");
+        AcceptanceCriteriaResponse criteria = createAcceptanceCriteria(task.getId(), "Original criterion");
+        UpdateAcceptanceCriteriaRequest request = new UpdateAcceptanceCriteriaRequest();
+        request.setText("Updated criterion");
+
+        mockMvc.perform(patch("/api/tasks/{taskId}/acceptance-criteria/{criteriaId}", task.getId(), criteria.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.text").value("Updated criterion"));
+    }
+
+    @Test
+    void deleteAcceptanceCriteriaRemovesCriteria() throws Exception {
+        TaskResponse task = createTask("Delete criteria task");
+        AcceptanceCriteriaResponse criteria = createAcceptanceCriteria(task.getId(), "Delete me");
+
+        mockMvc.perform(delete("/api/tasks/{taskId}/acceptance-criteria/{criteriaId}", task.getId(), criteria.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/tasks/{id}/acceptance-criteria", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void completeAndReopenAcceptanceCriteriaUpdatesCompletionState() throws Exception {
+        TaskResponse task = createTask("Complete criteria task");
+        AcceptanceCriteriaResponse criteria = createAcceptanceCriteria(task.getId(), "Complete me");
+
+        mockMvc.perform(patch("/api/tasks/{taskId}/acceptance-criteria/{criteriaId}/complete", task.getId(), criteria.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completed").value(true))
+                .andExpect(jsonPath("$.completedAt").exists())
+                .andExpect(jsonPath("$.completedById").isNumber());
+
+        mockMvc.perform(patch("/api/tasks/{taskId}/acceptance-criteria/{criteriaId}/reopen", task.getId(), criteria.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completed").value(false))
+                .andExpect(jsonPath("$.completedAt").value(nullValue()))
+                .andExpect(jsonPath("$.completedById").value(nullValue()));
+    }
+
+    @Test
+    void bulkCreateAcceptanceCriteriaReturnsCreatedItems() throws Exception {
+        TaskResponse task = createTask("Bulk criteria task");
+        BulkCreateAcceptanceCriteriaRequest request = new BulkCreateAcceptanceCriteriaRequest();
+        request.setItems(List.of(
+                "Old refresh token becomes invalid.",
+                "Expired refresh token returns 401."
+        ));
+
+        mockMvc.perform(post("/api/tasks/{id}/acceptance-criteria/bulk", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].text").value("Old refresh token becomes invalid."))
+                .andExpect(jsonPath("$[1].text").value("Expired refresh token returns 401."));
+    }
+
+    @Test
+    void unauthorizedUserCannotManageAcceptanceCriteria() throws Exception {
+        TaskResponse task = createTask("Private criteria task", null, null, adminToken());
+        CreateAcceptanceCriteriaRequest request = acceptanceCriteriaRequest("Should be rejected");
+
+        mockMvc.perform(post("/api/tasks/{id}/acceptance-criteria", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void changePriorityReturnsTaskWithNewPriority() throws Exception {
         TaskResponse task = createTask("Change priority");
         ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
@@ -694,6 +811,25 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
+    }
+
+    private AcceptanceCriteriaResponse createAcceptanceCriteria(Long taskId, String text) throws Exception {
+        String content = mockMvc.perform(post("/api/tasks/{id}/acceptance-criteria", taskId)
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(acceptanceCriteriaRequest(text))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readValue(content, AcceptanceCriteriaResponse.class);
+    }
+
+    private CreateAcceptanceCriteriaRequest acceptanceCriteriaRequest(String text) {
+        CreateAcceptanceCriteriaRequest request = new CreateAcceptanceCriteriaRequest();
+        request.setText(text);
+        return request;
     }
 
     private List<TaskStatus> pathFromTodoTo(TaskStatus status) {
