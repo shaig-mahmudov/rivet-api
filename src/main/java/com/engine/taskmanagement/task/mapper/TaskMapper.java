@@ -16,6 +16,7 @@ public interface TaskMapper {
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "activities", ignore = true)
     @Mapping(target = "acceptanceCriteria", ignore = true)
+    @Mapping(target = "comments", ignore = true)
     @Mapping(target = "priority", source = "priority", defaultValue = "MEDIUM")
     @Mapping(target = "status", source = "status", defaultValue = "TODO")
     Task toEntity(CreateTaskRequest request);
@@ -33,6 +34,7 @@ public interface TaskMapper {
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "activities", ignore = true)
     @Mapping(target = "acceptanceCriteria", ignore = true)
+    @Mapping(target = "comments", ignore = true)
     void updateEntity(UpdateTaskRequest request, @MappingTarget Task task);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -45,6 +47,7 @@ public interface TaskMapper {
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "activities", ignore = true)
     @Mapping(target = "acceptanceCriteria", ignore = true)
+    @Mapping(target = "comments", ignore = true)
     void partialUpdateEntity(PartialUpdateTaskRequest request, @MappingTarget Task task);
 
     @BeanMapping(ignoreByDefault = true)
