@@ -3,6 +3,7 @@ package com.engine.taskmanagement.task.entity;
 import com.engine.taskmanagement.common.entity.BaseEntity;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.task.activity.entity.TaskActivity;
+import com.engine.taskmanagement.task.criteria.entity.AcceptanceCriteria;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -62,5 +63,8 @@ public class Task extends BaseEntity {
 
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TaskActivity> activities = new ArrayList<>();
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AcceptanceCriteria> acceptanceCriteria = new ArrayList<>();
 
 }
