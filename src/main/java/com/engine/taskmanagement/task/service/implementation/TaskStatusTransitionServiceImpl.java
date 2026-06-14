@@ -11,6 +11,7 @@ import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.activity.service.abstraction.TaskActivityService;
+import com.engine.taskmanagement.task.criteria.repository.AcceptanceCriteriaRepository;
 import com.engine.taskmanagement.task.service.TaskStatusTransitionPolicy;
 import com.engine.taskmanagement.task.service.abstraction.TaskStatusTransitionService;
 import com.engine.taskmanagement.user.entity.User;
@@ -28,17 +29,20 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
     private final CurrentUserService currentUserService;
     private final TaskStatusTransitionPolicy transitionPolicy;
     private final TaskActivityService taskActivityService;
+    private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
 
     public TaskStatusTransitionServiceImpl(
             TaskRepository taskRepository,
             CurrentUserService currentUserService,
             TaskStatusTransitionPolicy transitionPolicy,
-            TaskActivityService taskActivityService
+            TaskActivityService taskActivityService,
+            AcceptanceCriteriaRepository acceptanceCriteriaRepository
     ) {
         this.taskRepository = taskRepository;
         this.currentUserService = currentUserService;
         this.transitionPolicy = transitionPolicy;
         this.taskActivityService = taskActivityService;
+        this.acceptanceCriteriaRepository = acceptanceCriteriaRepository;
     }
 
     @Override
@@ -66,7 +70,7 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
     public Task transitionTaskStatus(Task task, TaskStatus targetStatus, String reason, User currentUser) {
         requireTaskAccess(task, currentUser);
         String normalizedReason = normalizeReason(reason);
-        validateTransition(task.getStatus(), targetStatus, normalizedReason);
+        validateTransition(task, targetStatus, normalizedReason);
 
         TaskStatus previousStatus = task.getStatus();
         task.setStatus(targetStatus);
@@ -75,7 +79,8 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
         return updatedTask;
     }
 
-    private void validateTransition(TaskStatus currentStatus, TaskStatus targetStatus, String reason) {
+    private void validateTransition(Task task, TaskStatus targetStatus, String reason) {
+        TaskStatus currentStatus = task.getStatus();
         if (targetStatus == null) {
             throw new BadRequestException("Target status is required");
         }
@@ -90,6 +95,9 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
         }
         if (reason != null && reason.length() > MAX_REASON_LENGTH) {
             throw new BadRequestException("Reason cannot exceed 500 characters");
+        }
+        if (TaskStatus.DONE.equals(targetStatus) && acceptanceCriteriaRepository.existsByTaskIdAndCompletedFalse(task.getId())) {
+            throw new BadRequestException("Cannot complete task while acceptance criteria are incomplete");
         }
     }
 
