@@ -23,6 +23,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Project pagination and sorting
 - Task create, list, get by id, update, partial update, soft delete, hard delete, restore
 - Task status and priority update endpoints
+- Task status transition endpoint with workflow validation and reason-required transitions
 - Task search by title and description
 - Task classification by type and optional severity
 - Task technical context and expected outcome fields
@@ -203,6 +204,7 @@ DELETE /api/tasks/{id}
 DELETE /api/tasks/{id}/hard
 POST   /api/tasks/{id}/restore
 POST   /api/tasks/{id}/status
+POST   /api/tasks/{id}/transitions
 POST   /api/tasks/{id}/priority
 ```
 
@@ -267,9 +269,58 @@ Change status:
 
 ```json
 {
-  "status": "DONE"
+  "status": "IN_PROGRESS"
 }
 ```
+
+The legacy status endpoint is validated by the same transition rules as the transition endpoint.
+
+Transition status:
+
+```text
+POST /api/tasks/42/transitions
+```
+
+```json
+{
+  "targetStatus": "IN_REVIEW",
+  "reason": "Implementation completed and ready for review."
+}
+```
+
+Response:
+
+```json
+{
+  "taskId": 42,
+  "previousStatus": "IN_PROGRESS",
+  "currentStatus": "IN_REVIEW",
+  "reason": "Implementation completed and ready for review.",
+  "transitionedAt": "2026-06-13T18:30:00Z"
+}
+```
+
+Supported statuses are `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `DONE`, `REOPENED`, and `CANCELLED`.
+
+Allowed transitions:
+
+```text
+TODO -> IN_PROGRESS
+TODO -> CANCELLED
+IN_PROGRESS -> IN_REVIEW
+IN_PROGRESS -> BLOCKED
+IN_PROGRESS -> CANCELLED
+BLOCKED -> IN_PROGRESS
+BLOCKED -> CANCELLED
+IN_REVIEW -> DONE
+IN_REVIEW -> IN_PROGRESS
+IN_REVIEW -> BLOCKED
+DONE -> REOPENED
+REOPENED -> IN_PROGRESS
+REOPENED -> CANCELLED
+```
+
+Reason is required for `IN_PROGRESS -> BLOCKED`, `IN_REVIEW -> IN_PROGRESS`, `IN_REVIEW -> BLOCKED`, and `DONE -> REOPENED`.
 
 Change priority:
 
