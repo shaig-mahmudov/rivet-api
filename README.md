@@ -26,6 +26,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task status transition endpoint with workflow validation and reason-required transitions
 - Task activity timeline for task creation and important task changes
 - Manual acceptance criteria with completion tracking
+- Task comments for discussion, review notes, blockers, and context
 - Task search by title and description
 - Task classification by type and optional severity
 - Task technical context and expected outcome fields
@@ -209,6 +210,10 @@ POST   /api/tasks/{id}/status
 POST   /api/tasks/{id}/transitions
 POST   /api/tasks/{id}/priority
 GET    /api/tasks/{id}/timeline
+POST   /api/tasks/{id}/comments
+GET    /api/tasks/{id}/comments
+PATCH  /api/tasks/{id}/comments/{commentId}
+DELETE /api/tasks/{id}/comments/{commentId}
 POST   /api/tasks/{id}/acceptance-criteria
 POST   /api/tasks/{id}/acceptance-criteria/bulk
 GET    /api/tasks/{id}/acceptance-criteria
@@ -348,6 +353,25 @@ GET /api/tasks/42/timeline?page=0&size=20
 ```
 
 Task activity records are created by task workflows and are read-only from the public API.
+
+Task comments:
+
+```text
+POST /api/tasks/42/comments
+```
+
+```json
+{
+  "type": "BLOCKER",
+  "body": "This task is blocked because the auth module migration is not finished yet."
+}
+```
+
+```text
+GET /api/tasks/42/comments?page=0&size=20
+```
+
+Comments can be listed, updated, and soft deleted through the nested task endpoints.
 
 Acceptance criteria:
 
