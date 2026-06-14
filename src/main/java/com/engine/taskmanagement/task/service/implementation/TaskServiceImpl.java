@@ -6,10 +6,12 @@ import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
+import com.engine.taskmanagement.task.activity.service.abstraction.TaskActivityService;
 import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.enums.Severity;
+import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
@@ -33,6 +35,7 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper taskMapper;
     private final CurrentUserService currentUserService;
     private final TaskStatusTransitionService taskStatusTransitionService;
+    private final TaskActivityService taskActivityService;
 
 
     public TaskServiceImpl(
@@ -41,7 +44,8 @@ public class TaskServiceImpl implements TaskService {
             UserRepository userRepository,
             TaskMapper taskMapper,
             CurrentUserService currentUserService,
-            TaskStatusTransitionService taskStatusTransitionService
+            TaskStatusTransitionService taskStatusTransitionService,
+            TaskActivityService taskActivityService
     ) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
@@ -49,6 +53,7 @@ public class TaskServiceImpl implements TaskService {
         this.taskMapper = taskMapper;
         this.currentUserService = currentUserService;
         this.taskStatusTransitionService = taskStatusTransitionService;
+        this.taskActivityService = taskActivityService;
     }
 
     @Override
@@ -74,6 +79,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         Task savedTask = taskRepository.save(task);
+        taskActivityService.recordTaskCreated(savedTask, currentUser);
         return taskMapper.toResponse(savedTask);
     }
 
@@ -118,6 +124,10 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
         User currentUser = currentUserService.getCurrentUser();
         requireTaskAccess(currentTask, currentUser);
+        User oldAssignee = currentTask.getAssignee();
+        TaskPriority oldPriority = currentTask.getPriority();
+        TaskType oldType = currentTask.getType();
+        Severity oldSeverity = currentTask.getSeverity();
 
         if (request.getProjectId() != null) {
             Project project = projectRepository.findByIdAndDeletedAtIsNull(request.getProjectId())
@@ -138,6 +148,7 @@ public class TaskServiceImpl implements TaskService {
         validateTaskClassification(currentTask.getType(), currentTask.getSeverity());
         transitionTaskStatusIfChanged(currentTask, targetStatus, currentUser, null);
         Task updatedTask = taskRepository.save(currentTask);
+        recordTaskUpdateActivities(updatedTask, currentUser, oldAssignee, oldPriority, oldType, oldSeverity);
         return taskMapper.toResponse(updatedTask);
     }
 
@@ -148,6 +159,10 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id:" + id));
         User currentUser = currentUserService.getCurrentUser();
         requireTaskAccess(currentTask, currentUser);
+        User oldAssignee = currentTask.getAssignee();
+        TaskPriority oldPriority = currentTask.getPriority();
+        TaskType oldType = currentTask.getType();
+        Severity oldSeverity = currentTask.getSeverity();
 
         if (request.getProjectId() != null) {
             Project project = projectRepository.findByIdAndDeletedAtIsNull(request.getProjectId())
@@ -166,6 +181,7 @@ public class TaskServiceImpl implements TaskService {
         validateTaskClassification(currentTask.getType(), currentTask.getSeverity());
         transitionTaskStatusIfChanged(currentTask, targetStatus, currentUser, null);
         Task updatedTask = taskRepository.save((currentTask));
+        recordTaskUpdateActivities(updatedTask, currentUser, oldAssignee, oldPriority, oldType, oldSeverity);
         return taskMapper.toResponse(updatedTask);
     }
 
@@ -225,10 +241,13 @@ public class TaskServiceImpl implements TaskService {
     public TaskResponse changeTaskPriority(Long id, ChangeTaskPriorityRequest request) {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
-        requireTaskAccess(task, currentUserService.getCurrentUser());
+        User currentUser = currentUserService.getCurrentUser();
+        requireTaskAccess(task, currentUser);
+        TaskPriority oldPriority = task.getPriority();
 
         taskMapper.changeTaskPriority(request, task);
         Task updatedTask = taskRepository.save(task);
+        taskActivityService.recordPriorityChanged(updatedTask, currentUser, oldPriority, updatedTask.getPriority());
         return taskMapper.toResponse(updatedTask);
     }
 
@@ -267,6 +286,20 @@ public class TaskServiceImpl implements TaskService {
             return;
         }
         taskStatusTransitionService.transitionTaskStatus(task, targetStatus, reason, currentUser);
+    }
+
+    private void recordTaskUpdateActivities(
+            Task task,
+            User currentUser,
+            User oldAssignee,
+            TaskPriority oldPriority,
+            TaskType oldType,
+            Severity oldSeverity
+    ) {
+        taskActivityService.recordAssigneeChanged(task, currentUser, oldAssignee, task.getAssignee());
+        taskActivityService.recordPriorityChanged(task, currentUser, oldPriority, task.getPriority());
+        taskActivityService.recordTypeChanged(task, currentUser, oldType, task.getType());
+        taskActivityService.recordSeverityChanged(task, currentUser, oldSeverity, task.getSeverity());
     }
 
     private void requireTaskAccess(Task task, User currentUser) {
