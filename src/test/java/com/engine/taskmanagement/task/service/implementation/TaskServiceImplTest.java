@@ -11,14 +11,18 @@ import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.FilterTaskRequest;
 import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.TaskTransitionRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.dto.response.TaskTransitionResponse;
+import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
+import com.engine.taskmanagement.task.service.abstraction.TaskStatusTransitionService;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +47,9 @@ class TaskServiceImplTest {
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    private TaskStatusTransitionService taskStatusTransitionService;
 
     @Autowired
     private TaskRepository taskRepository;
@@ -270,11 +277,140 @@ class TaskServiceImplTest {
     void changeTaskStatusUpdatesActiveTaskStatus() {
         TaskResponse task = taskService.createTask(createTaskRequest("Move status"));
         ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
-        request.setStatus(TaskStatus.DONE);
+        request.setStatus(TaskStatus.IN_PROGRESS);
 
         TaskResponse response = taskService.changeTaskStatus(task.getId(), request);
 
-        assertThat(response.getStatus()).isEqualTo(TaskStatus.DONE);
+        assertThat(response.getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void transitionTaskStatusAllowsConfiguredTransitions() {
+        List<TransitionCase> transitions = List.of(
+                new TransitionCase(TaskStatus.TODO, TaskStatus.IN_PROGRESS, null),
+                new TransitionCase(TaskStatus.TODO, TaskStatus.CANCELLED, null),
+                new TransitionCase(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, null),
+                new TransitionCase(TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED, "Waiting on dependency"),
+                new TransitionCase(TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED, null),
+                new TransitionCase(TaskStatus.BLOCKED, TaskStatus.IN_PROGRESS, null),
+                new TransitionCase(TaskStatus.BLOCKED, TaskStatus.CANCELLED, null),
+                new TransitionCase(TaskStatus.IN_REVIEW, TaskStatus.DONE, null),
+                new TransitionCase(TaskStatus.IN_REVIEW, TaskStatus.IN_PROGRESS, "Review changes requested"),
+                new TransitionCase(TaskStatus.IN_REVIEW, TaskStatus.BLOCKED, "Reviewer is blocked"),
+                new TransitionCase(TaskStatus.DONE, TaskStatus.REOPENED, "Regression found"),
+                new TransitionCase(TaskStatus.REOPENED, TaskStatus.IN_PROGRESS, null),
+                new TransitionCase(TaskStatus.REOPENED, TaskStatus.CANCELLED, null)
+        );
+
+        for (TransitionCase transition : transitions) {
+            TaskResponse task = taskService.createTask(createTaskRequest("Transition " + transition.to()));
+            setStoredStatus(task.getId(), transition.from());
+            TaskTransitionRequest request = transitionRequest(transition.to(), transition.reason());
+
+            TaskTransitionResponse response = taskStatusTransitionService.transitionTaskStatus(task.getId(), request);
+
+            assertThat(response.getTaskId()).isEqualTo(task.getId());
+            assertThat(response.getPreviousStatus()).isEqualTo(transition.from());
+            assertThat(response.getCurrentStatus()).isEqualTo(transition.to());
+            assertThat(response.getTransitionedAt()).isNotNull();
+        }
+    }
+
+    @Test
+    void transitionTaskStatusRejectsInvalidTransitions() {
+        List<TransitionCase> transitions = List.of(
+                new TransitionCase(TaskStatus.TODO, TaskStatus.DONE, null),
+                new TransitionCase(TaskStatus.DONE, TaskStatus.IN_PROGRESS, null),
+                new TransitionCase(TaskStatus.CANCELLED, TaskStatus.IN_PROGRESS, null),
+                new TransitionCase(TaskStatus.CANCELLED, TaskStatus.DONE, null)
+        );
+
+        for (TransitionCase transition : transitions) {
+            TaskResponse task = taskService.createTask(createTaskRequest("Invalid transition " + transition.to()));
+            setStoredStatus(task.getId(), transition.from());
+
+            assertThatThrownBy(() -> taskStatusTransitionService.transitionTaskStatus(
+                    task.getId(),
+                    transitionRequest(transition.to(), transition.reason())
+            ))
+                    .isInstanceOf(BadRequestException.class)
+                    .hasMessageContaining("Invalid task status transition");
+        }
+    }
+
+    @Test
+    void transitionTaskStatusRequiresDifferentTargetStatus() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Same status"));
+
+        assertThatThrownBy(() -> taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.TODO, null)
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Target status must be different");
+    }
+
+    @Test
+    void transitionTaskStatusRequiresReasonForSelectedTransitions() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Blocked task"));
+        setStoredStatus(task.getId(), TaskStatus.IN_PROGRESS);
+
+        assertThatThrownBy(() -> taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.BLOCKED, null)
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Reason is required");
+    }
+
+    @Test
+    void transitionTaskStatusStoresValidTransitionWithReason() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Reopened task"));
+        setStoredStatus(task.getId(), TaskStatus.DONE);
+
+        TaskTransitionResponse response = taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.REOPENED, "Bug reproduced after release")
+        );
+
+        assertThat(response.getPreviousStatus()).isEqualTo(TaskStatus.DONE);
+        assertThat(response.getCurrentStatus()).isEqualTo(TaskStatus.REOPENED);
+        assertThat(response.getReason()).isEqualTo("Bug reproduced after release");
+    }
+
+    @Test
+    void transitionTaskStatusRejectsUnauthorizedUser() {
+        User otherUser = createUser("other-owner@example.com");
+        authenticateAs(otherUser);
+        TaskResponse task = taskService.createTask(createTaskRequest("Private task"));
+        authenticateAs(currentUser);
+
+        assertThatThrownBy(() -> taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.IN_PROGRESS, null)
+        ))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("assigned to you or owned through your projects");
+    }
+
+    @Test
+    void transitionTaskStatusAllowsProjectOwnerAndAssignee() {
+        User assignee = createUser("transition-assignee@example.com");
+        Project project = createProject("Transition project");
+        TaskResponse task = taskService.createTask(createTaskRequest("Owned task", project.getId(), assignee.getId()));
+
+        TaskTransitionResponse ownerResponse = taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.IN_PROGRESS, null)
+        );
+        authenticateAs(assignee);
+        TaskTransitionResponse assigneeResponse = taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.IN_REVIEW, null)
+        );
+
+        assertThat(ownerResponse.getCurrentStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
+        assertThat(assigneeResponse.getCurrentStatus()).isEqualTo(TaskStatus.IN_REVIEW);
     }
 
     @Test
@@ -585,14 +721,47 @@ class TaskServiceImplTest {
     }
 
     private void changeStatus(Long taskId, TaskStatus status) {
-        ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
-        request.setStatus(status);
-        taskService.changeTaskStatus(taskId, request);
+        for (TaskStatus nextStatus : pathFromTodoTo(status)) {
+            ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
+            request.setStatus(nextStatus);
+            if (TaskStatus.BLOCKED.equals(nextStatus) || TaskStatus.REOPENED.equals(nextStatus)) {
+                request.setReason("Required transition reason");
+            }
+            taskService.changeTaskStatus(taskId, request);
+        }
     }
 
     private void changePriority(Long taskId, TaskPriority priority) {
         ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
         request.setPriority(priority);
         taskService.changeTaskPriority(taskId, request);
+    }
+
+    private void setStoredStatus(Long taskId, TaskStatus status) {
+        Task task = taskRepository.findById(taskId).orElseThrow();
+        task.setStatus(status);
+        taskRepository.save(task);
+    }
+
+    private TaskTransitionRequest transitionRequest(TaskStatus targetStatus, String reason) {
+        TaskTransitionRequest request = new TaskTransitionRequest();
+        request.setTargetStatus(targetStatus);
+        request.setReason(reason);
+        return request;
+    }
+
+    private List<TaskStatus> pathFromTodoTo(TaskStatus status) {
+        return switch (status) {
+            case TODO -> List.of();
+            case IN_PROGRESS -> List.of(TaskStatus.IN_PROGRESS);
+            case IN_REVIEW -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW);
+            case BLOCKED -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED);
+            case DONE -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE);
+            case REOPENED -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE, TaskStatus.REOPENED);
+            case CANCELLED -> List.of(TaskStatus.CANCELLED);
+        };
+    }
+
+    private record TransitionCase(TaskStatus from, TaskStatus to, String reason) {
     }
 }

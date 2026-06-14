@@ -2,7 +2,9 @@ package com.engine.taskmanagement.task.controller;
 
 import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.dto.response.TaskTransitionResponse;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
+import com.engine.taskmanagement.task.service.abstraction.TaskStatusTransitionService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,10 +19,12 @@ import org.springframework.web.bind.annotation.*;
 public class TaskController {
 
     private final TaskService taskService;
+    private final TaskStatusTransitionService taskStatusTransitionService;
 
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, TaskStatusTransitionService taskStatusTransitionService) {
         this.taskService = taskService;
+        this.taskStatusTransitionService = taskStatusTransitionService;
     }
 
     @PostMapping
@@ -98,6 +102,14 @@ public class TaskController {
             @PathVariable Long id,
             @Valid @RequestBody ChangeTaskStatusRequest request) {
         TaskResponse response = taskService.changeTaskStatus(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/transitions")
+    public ResponseEntity<TaskTransitionResponse> transitionStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody TaskTransitionRequest request) {
+        TaskTransitionResponse response = taskStatusTransitionService.transitionTaskStatus(id, request);
         return ResponseEntity.ok(response);
     }
 

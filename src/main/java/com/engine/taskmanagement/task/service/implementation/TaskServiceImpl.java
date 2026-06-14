@@ -10,10 +10,12 @@ import com.engine.taskmanagement.task.dto.request.*;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.enums.Severity;
+import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.enums.TaskType;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.task.service.abstraction.TaskService;
+import com.engine.taskmanagement.task.service.abstraction.TaskStatusTransitionService;
 import com.engine.taskmanagement.task.specification.TaskSpecification;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.repository.UserRepository;
@@ -30,6 +32,7 @@ public class TaskServiceImpl implements TaskService {
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
     private final CurrentUserService currentUserService;
+    private final TaskStatusTransitionService taskStatusTransitionService;
 
 
     public TaskServiceImpl(
@@ -37,13 +40,15 @@ public class TaskServiceImpl implements TaskService {
             ProjectRepository projectRepository,
             UserRepository userRepository,
             TaskMapper taskMapper,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            TaskStatusTransitionService taskStatusTransitionService
     ) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.taskMapper = taskMapper;
         this.currentUserService = currentUserService;
+        this.taskStatusTransitionService = taskStatusTransitionService;
     }
 
     @Override
@@ -128,8 +133,10 @@ public class TaskServiceImpl implements TaskService {
             currentTask.setAssignee(assignee);
         }
 
+        TaskStatus targetStatus = request.getStatus();
         taskMapper.updateEntity(request, currentTask);
         validateTaskClassification(currentTask.getType(), currentTask.getSeverity());
+        transitionTaskStatusIfChanged(currentTask, targetStatus, currentUser, null);
         Task updatedTask = taskRepository.save(currentTask);
         return taskMapper.toResponse(updatedTask);
     }
@@ -154,8 +161,10 @@ public class TaskServiceImpl implements TaskService {
             requireAssigneeAllowed(currentTask, assignee, currentUser);
             currentTask.setAssignee(assignee);
         }
+        TaskStatus targetStatus = request.getStatus();
         taskMapper.partialUpdateEntity(request, currentTask);
         validateTaskClassification(currentTask.getType(), currentTask.getSeverity());
+        transitionTaskStatusIfChanged(currentTask, targetStatus, currentUser, null);
         Task updatedTask = taskRepository.save((currentTask));
         return taskMapper.toResponse(updatedTask);
     }
@@ -200,10 +209,14 @@ public class TaskServiceImpl implements TaskService {
     public TaskResponse changeTaskStatus(Long id, ChangeTaskStatusRequest request) {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
-        requireTaskAccess(task, currentUserService.getCurrentUser());
+        User currentUser = currentUserService.getCurrentUser();
 
-        taskMapper.changeTaskStatus(request, task);
-        Task updatedTask = taskRepository.save(task);
+        Task updatedTask = taskStatusTransitionService.transitionTaskStatus(
+                task,
+                request.getStatus(),
+                request.getReason(),
+                currentUser
+        );
         return taskMapper.toResponse(updatedTask);
     }
 
@@ -247,6 +260,13 @@ public class TaskServiceImpl implements TaskService {
         if ((TaskType.INCIDENT.equals(type) || TaskType.RELIABILITY.equals(type)) && severity == null) {
             throw new BadRequestException("Severity is required for incident and reliability tasks");
         }
+    }
+
+    private void transitionTaskStatusIfChanged(Task task, TaskStatus targetStatus, User currentUser, String reason) {
+        if (targetStatus == null || targetStatus.equals(task.getStatus())) {
+            return;
+        }
+        taskStatusTransitionService.transitionTaskStatus(task, targetStatus, reason, currentUser);
     }
 
     private void requireTaskAccess(Task task, User currentUser) {

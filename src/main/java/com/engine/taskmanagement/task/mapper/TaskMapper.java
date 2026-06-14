@@ -28,6 +28,7 @@ public interface TaskMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "status", ignore = true)
     void updateEntity(UpdateTaskRequest request, @MappingTarget Task task);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -37,6 +38,7 @@ public interface TaskMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "status", ignore = true)
     void partialUpdateEntity(PartialUpdateTaskRequest request, @MappingTarget Task task);
 
     @BeanMapping(ignoreByDefault = true)
