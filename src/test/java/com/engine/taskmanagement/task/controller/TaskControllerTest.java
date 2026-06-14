@@ -4,6 +4,7 @@ import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
+import com.engine.taskmanagement.task.dto.request.TaskTransitionRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.Severity;
@@ -28,6 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -341,14 +343,60 @@ class TaskControllerTest {
     void changeStatusReturnsTaskWithNewStatus() throws Exception {
         TaskResponse task = createTask("Change status");
         ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
-        request.setStatus(TaskStatus.DONE);
+        request.setStatus(TaskStatus.IN_PROGRESS);
 
         mockMvc.perform(post("/api/tasks/{id}/status", task.getId())
                         .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DONE"));
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+    }
+
+    @Test
+    void transitionStatusReturnsTransitionResponse() throws Exception {
+        TaskResponse task = createTask("Transition status");
+        TaskTransitionRequest request = new TaskTransitionRequest();
+        request.setTargetStatus(TaskStatus.IN_PROGRESS);
+
+        mockMvc.perform(post("/api/tasks/{id}/transitions", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.previousStatus").value("TODO"))
+                .andExpect(jsonPath("$.currentStatus").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.transitionedAt").exists());
+    }
+
+    @Test
+    void transitionStatusRejectsInvalidTransition() throws Exception {
+        TaskResponse task = createTask("Invalid transition");
+        TaskTransitionRequest request = new TaskTransitionRequest();
+        request.setTargetStatus(TaskStatus.DONE);
+
+        mockMvc.perform(post("/api/tasks/{id}/transitions", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid task status transition: TODO -> DONE"));
+    }
+
+    @Test
+    void transitionStatusRequiresReasonWhenPolicyRequiresIt() throws Exception {
+        TaskResponse task = createTask("Reason transition");
+        changeStatus(task.getId(), TaskStatus.IN_REVIEW);
+        TaskTransitionRequest request = new TaskTransitionRequest();
+        request.setTargetStatus(TaskStatus.IN_PROGRESS);
+
+        mockMvc.perform(post("/api/tasks/{id}/transitions", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Reason is required for transition: IN_REVIEW -> IN_PROGRESS"));
     }
 
     @Test
@@ -579,13 +627,18 @@ class TaskControllerTest {
     }
 
     private void changeStatus(Long taskId, TaskStatus taskStatus) throws Exception {
-        ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
-        request.setStatus(taskStatus);
-        mockMvc.perform(post("/api/tasks/{id}/status", taskId)
-                        .header("Authorization", "Bearer " + userToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+        for (TaskStatus nextStatus : pathFromTodoTo(taskStatus)) {
+            ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
+            request.setStatus(nextStatus);
+            if (TaskStatus.BLOCKED.equals(nextStatus) || TaskStatus.REOPENED.equals(nextStatus)) {
+                request.setReason("Required transition reason");
+            }
+            mockMvc.perform(post("/api/tasks/{id}/status", taskId)
+                            .header("Authorization", "Bearer " + userToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
     }
 
     private void changePriority(Long taskId, TaskPriority priority) throws Exception {
@@ -596,5 +649,17 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
+    }
+
+    private List<TaskStatus> pathFromTodoTo(TaskStatus status) {
+        return switch (status) {
+            case TODO -> List.of();
+            case IN_PROGRESS -> List.of(TaskStatus.IN_PROGRESS);
+            case IN_REVIEW -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW);
+            case BLOCKED -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED);
+            case DONE -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE);
+            case REOPENED -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE, TaskStatus.REOPENED);
+            case CANCELLED -> List.of(TaskStatus.CANCELLED);
+        };
     }
 }
