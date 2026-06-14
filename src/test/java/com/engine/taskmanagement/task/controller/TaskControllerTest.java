@@ -8,6 +8,10 @@ import com.engine.taskmanagement.task.dto.request.TaskTransitionRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.activity.enums.TaskActivityType;
+import com.engine.taskmanagement.task.comment.dto.request.CreateTaskCommentRequest;
+import com.engine.taskmanagement.task.comment.dto.request.UpdateTaskCommentRequest;
+import com.engine.taskmanagement.task.comment.dto.response.TaskCommentResponse;
+import com.engine.taskmanagement.task.comment.enums.TaskCommentType;
 import com.engine.taskmanagement.task.criteria.dto.request.BulkCreateAcceptanceCriteriaRequest;
 import com.engine.taskmanagement.task.criteria.dto.request.CreateAcceptanceCriteriaRequest;
 import com.engine.taskmanagement.task.criteria.dto.request.UpdateAcceptanceCriteriaRequest;
@@ -16,6 +20,7 @@ import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.enums.TaskType;
+import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.auth.enums.Role;
@@ -553,8 +558,146 @@ class TaskControllerTest {
         mockMvc.perform(post("/api/tasks/{id}/acceptance-criteria", task.getId())
                         .header("Authorization", "Bearer " + userToken())
                         .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createTaskCommentReturnsCreatedComment() throws Exception {
+        TaskResponse task = createTask("Comment task");
+        CreateTaskCommentRequest request = taskCommentRequest(TaskCommentType.BLOCKER, "Auth module migration is not ready.");
+
+        mockMvc.perform(post("/api/tasks/{id}/comments", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.authorId").isNumber())
+                .andExpect(jsonPath("$.type").value("BLOCKER"))
+                .andExpect(jsonPath("$.body").value("Auth module migration is not ready."));
+    }
+
+    @Test
+    void listTaskCommentsReturnsOnlyActiveCommentsForTask() throws Exception {
+        TaskResponse task = createTask("List comments task");
+        TaskResponse otherTask = createTask("Other comments task");
+        createComment(task.getId(), TaskCommentType.GENERAL, "First comment", userToken());
+        createComment(otherTask.getId(), TaskCommentType.GENERAL, "Other comment", userToken());
+
+        mockMvc.perform(get("/api/tasks/{id}/comments", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].body").value("First comment"));
+    }
+
+    @Test
+    void updateOwnTaskCommentReturnsUpdatedComment() throws Exception {
+        TaskResponse task = createTask("Own comment task");
+        TaskCommentResponse comment = createComment(task.getId(), TaskCommentType.REVIEW, "Needs tests", userToken());
+        UpdateTaskCommentRequest request = updateCommentRequest("Needs integration tests");
+
+        mockMvc.perform(patch("/api/tasks/{taskId}/comments/{commentId}", task.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body").value("Needs integration tests"));
+    }
+
+    @Test
+    void projectOwnerCanUpdateTaskComment() throws Exception {
+        User owner = createUser("comment-owner@example.com");
+        User assignee = createUser("comment-assignee@example.com");
+        Project project = createProject("Comment project", owner);
+        TaskResponse task = createTaskInProject("Owned comment task", project.getId(), assignee.getId(), tokenFor(owner));
+        TaskCommentResponse comment = createComment(task.getId(), TaskCommentType.GENERAL, "Original", tokenFor(assignee));
+        UpdateTaskCommentRequest request = updateCommentRequest("Owner update");
+
+        mockMvc.perform(patch("/api/tasks/{taskId}/comments/{commentId}", task.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + tokenFor(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.body").value("Owner update"));
+    }
+
+    @Test
+    void projectOwnerCanDeleteTaskComment() throws Exception {
+        User owner = createUser("delete-comment-owner@example.com");
+        User assignee = createUser("delete-comment-assignee@example.com");
+        Project project = createProject("Delete comment project", owner);
+        TaskResponse task = createTaskInProject("Delete comment task", project.getId(), assignee.getId(), tokenFor(owner));
+        TaskCommentResponse comment = createComment(task.getId(), TaskCommentType.GENERAL, "Remove this", tokenFor(assignee));
+
+        mockMvc.perform(delete("/api/tasks/{taskId}/comments/{commentId}", task.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + tokenFor(owner)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/tasks/{id}/comments", task.getId())
+                        .header("Authorization", "Bearer " + tokenFor(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void unauthorizedUserCannotViewTaskComments() throws Exception {
+        TaskResponse task = createTask("Private comments task", null, null, adminToken());
+
+        mockMvc.perform(get("/api/tasks/{id}/comments", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthorizedUserCannotUpdateOrDeleteTaskComment() throws Exception {
+        TaskResponse task = createTask("Protected comments task", null, null, adminToken());
+        TaskCommentResponse comment = createComment(task.getId(), TaskCommentType.GENERAL, "Protected", adminToken());
+        UpdateTaskCommentRequest request = updateCommentRequest("Rejected");
+
+        mockMvc.perform(patch("/api/tasks/{taskId}/comments/{commentId}", task.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/tasks/{taskId}/comments/{commentId}", task.getId(), comment.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void taskCommentListSupportsPagination() throws Exception {
+        TaskResponse task = createTask("Paged comments task");
+        createComment(task.getId(), TaskCommentType.GENERAL, "First", userToken());
+        createComment(task.getId(), TaskCommentType.REVIEW, "Second", userToken());
+
+        mockMvc.perform(get("/api/tasks/{id}/comments", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content.length()").value(1));
+    }
+
+    @Test
+    void creatingTaskCommentRecordsActivityEvent() throws Exception {
+        TaskResponse task = createTask("Comment activity task");
+
+        createComment(task.getId(), TaskCommentType.BLOCKER, "Blocked by auth migration", userToken());
+
+        mockMvc.perform(get("/api/tasks/{id}/timeline", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].type", containsInAnyOrder(
+                        TaskActivityType.TASK_CREATED.name(),
+                        TaskActivityType.COMMENT_ADDED.name()
+                )));
     }
 
     @Test
@@ -728,6 +871,12 @@ class TaskControllerTest {
         return createTask(createTaskRequest(title, dueDate, assigneeId), token);
     }
 
+    private TaskResponse createTaskInProject(String title, Long projectId, Long assigneeId, String token) throws Exception {
+        CreateTaskRequest request = createTaskRequest(title, null, assigneeId);
+        request.setProjectId(projectId);
+        return createTask(request, token);
+    }
+
     private TaskResponse createTask(CreateTaskRequest request, String token) throws Exception {
         String content = mockMvc.perform(post("/api/tasks")
                         .header("Authorization", "Bearer " + token)
@@ -772,6 +921,14 @@ class TaskControllerTest {
             user.setRole(role);
             return userRepository.save(user);
         });
+    }
+
+    private Project createProject(String name, User owner) {
+        Project project = new Project();
+        project.setName(name);
+        project.setDescription("Project description");
+        project.setOwner(owner);
+        return projectRepository.save(project);
     }
 
     private String adminToken() {
@@ -829,6 +986,37 @@ class TaskControllerTest {
     private CreateAcceptanceCriteriaRequest acceptanceCriteriaRequest(String text) {
         CreateAcceptanceCriteriaRequest request = new CreateAcceptanceCriteriaRequest();
         request.setText(text);
+        return request;
+    }
+
+    private TaskCommentResponse createComment(
+            Long taskId,
+            TaskCommentType type,
+            String body,
+            String token
+    ) throws Exception {
+        String content = mockMvc.perform(post("/api/tasks/{id}/comments", taskId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(taskCommentRequest(type, body))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readValue(content, TaskCommentResponse.class);
+    }
+
+    private CreateTaskCommentRequest taskCommentRequest(TaskCommentType type, String body) {
+        CreateTaskCommentRequest request = new CreateTaskCommentRequest();
+        request.setType(type);
+        request.setBody(body);
+        return request;
+    }
+
+    private UpdateTaskCommentRequest updateCommentRequest(String body) {
+        UpdateTaskCommentRequest request = new UpdateTaskCommentRequest();
+        request.setBody(body);
         return request;
     }
 
