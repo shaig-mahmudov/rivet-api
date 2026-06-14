@@ -6,6 +6,9 @@ import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
+import com.engine.taskmanagement.task.activity.entity.TaskActivity;
+import com.engine.taskmanagement.task.activity.enums.TaskActivityType;
+import com.engine.taskmanagement.task.activity.repository.TaskActivityRepository;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
@@ -29,7 +32,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -53,6 +58,9 @@ class TaskServiceImplTest {
 
     @Autowired
     private TaskRepository taskRepository;
+
+    @Autowired
+    private TaskActivityRepository taskActivityRepository;
 
     @Autowired
     private ProjectRepository projectRepository;
@@ -86,6 +94,15 @@ class TaskServiceImplTest {
         assertThat(response.getPriority()).isEqualTo(TaskPriority.MEDIUM);
         assertThat(response.getStatus()).isEqualTo(TaskStatus.TODO);
         assertThat(taskRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void createTaskRecordsTaskCreatedActivity() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Activity task"));
+
+        assertThat(activitiesFor(task.getId()))
+                .extracting(TaskActivity::getType)
+                .containsExactly(TaskActivityType.TASK_CREATED);
     }
 
     @Test
@@ -285,6 +302,19 @@ class TaskServiceImplTest {
     }
 
     @Test
+    void changeTaskStatusRecordsActivity() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Move status activity"));
+        ChangeTaskStatusRequest request = new ChangeTaskStatusRequest();
+        request.setStatus(TaskStatus.IN_PROGRESS);
+
+        taskService.changeTaskStatus(task.getId(), request);
+
+        assertThat(activitiesFor(task.getId()))
+                .extracting(TaskActivity::getType)
+                .containsExactlyInAnyOrder(TaskActivityType.STATUS_CHANGED, TaskActivityType.TASK_CREATED);
+    }
+
+    @Test
     void transitionTaskStatusAllowsConfiguredTransitions() {
         List<TransitionCase> transitions = List.of(
                 new TransitionCase(TaskStatus.TODO, TaskStatus.IN_PROGRESS, null),
@@ -422,6 +452,41 @@ class TaskServiceImplTest {
         TaskResponse response = taskService.changeTaskPriority(task.getId(), request);
 
         assertThat(response.getPriority()).isEqualTo(TaskPriority.URGENT);
+    }
+
+    @Test
+    void changeTaskPriorityRecordsActivity() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Raise priority activity"));
+        ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
+        request.setPriority(TaskPriority.URGENT);
+
+        taskService.changeTaskPriority(task.getId(), request);
+
+        assertThat(activitiesFor(task.getId()))
+                .extracting(TaskActivity::getType)
+                .containsExactlyInAnyOrder(TaskActivityType.PRIORITY_CHANGED, TaskActivityType.TASK_CREATED);
+    }
+
+    @Test
+    void partialUpdateTaskRecordsAssigneeTypeAndSeverityActivities() {
+        User firstAssignee = createUser("first-assignee@example.com");
+        User secondAssignee = createUser("second-assignee@example.com");
+        Project project = createProject("Activity project");
+        TaskResponse task = taskService.createTask(createTaskRequest("Update activity", project.getId(), firstAssignee.getId()));
+        PartialUpdateTaskRequest request = new PartialUpdateTaskRequest();
+        request.setAssigneeId(secondAssignee.getId());
+        request.setType(TaskType.BUG);
+        request.setSeverity(Severity.HIGH);
+
+        taskService.partialUpdateTask(task.getId(), request);
+
+        assertThat(activitiesFor(task.getId()))
+                .extracting(TaskActivity::getType)
+                .contains(
+                        TaskActivityType.ASSIGNEE_CHANGED,
+                        TaskActivityType.TYPE_CHANGED,
+                        TaskActivityType.SEVERITY_CHANGED
+                );
     }
 
     @Test
@@ -741,6 +806,13 @@ class TaskServiceImplTest {
         Task task = taskRepository.findById(taskId).orElseThrow();
         task.setStatus(status);
         taskRepository.save(task);
+    }
+
+    private List<TaskActivity> activitiesFor(Long taskId) {
+        return taskActivityRepository.findByTaskId(
+                taskId,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).getContent();
     }
 
     private TaskTransitionRequest transitionRequest(TaskStatus targetStatus, String reason) {

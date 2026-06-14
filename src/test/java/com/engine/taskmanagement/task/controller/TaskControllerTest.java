@@ -7,6 +7,7 @@ import com.engine.taskmanagement.task.dto.request.PartialUpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.request.TaskTransitionRequest;
 import com.engine.taskmanagement.task.dto.request.UpdateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
+import com.engine.taskmanagement.task.activity.enums.TaskActivityType;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -400,6 +401,46 @@ class TaskControllerTest {
     }
 
     @Test
+    void getTaskTimelineReturnsActivitiesForRequestedTask() throws Exception {
+        TaskResponse task = createTask("Timeline task");
+        createTask("Other timeline task");
+
+        mockMvc.perform(get("/api/tasks/{id}/timeline", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].type").value(TaskActivityType.TASK_CREATED.name()))
+                .andExpect(jsonPath("$.content[0].actor.id").isNumber())
+                .andExpect(jsonPath("$.content[0].message").value("Task created"));
+    }
+
+    @Test
+    void getTaskTimelineRejectsUnauthorizedUser() throws Exception {
+        TaskResponse task = createTask("Private timeline task", null, null, adminToken());
+
+        mockMvc.perform(get("/api/tasks/{id}/timeline", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getTaskTimelineSupportsPagination() throws Exception {
+        TaskResponse task = createTask("Paged timeline task");
+        changePriority(task.getId(), TaskPriority.HIGH);
+        changeStatus(task.getId(), TaskStatus.IN_PROGRESS);
+
+        mockMvc.perform(get("/api/tasks/{id}/timeline", task.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.content.length()").value(1));
+    }
+
+    @Test
     void changePriorityReturnsTaskWithNewPriority() throws Exception {
         TaskResponse task = createTask("Change priority");
         ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
@@ -618,11 +659,15 @@ class TaskControllerTest {
 
     private String adminToken() {
         User admin = createUser("admin@example.com", Role.ADMIN);
-        return jwtService.generateToken(admin);
+        return tokenFor(admin);
     }
 
     private String userToken() {
         User user = createUser("user@example.com", Role.USER);
+        return tokenFor(user);
+    }
+
+    private String tokenFor(User user) {
         return jwtService.generateToken(user);
     }
 

@@ -10,6 +10,7 @@ import com.engine.taskmanagement.task.dto.response.TaskTransitionResponse;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
+import com.engine.taskmanagement.task.activity.service.abstraction.TaskActivityService;
 import com.engine.taskmanagement.task.service.TaskStatusTransitionPolicy;
 import com.engine.taskmanagement.task.service.abstraction.TaskStatusTransitionService;
 import com.engine.taskmanagement.user.entity.User;
@@ -26,15 +27,18 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
     private final TaskRepository taskRepository;
     private final CurrentUserService currentUserService;
     private final TaskStatusTransitionPolicy transitionPolicy;
+    private final TaskActivityService taskActivityService;
 
     public TaskStatusTransitionServiceImpl(
             TaskRepository taskRepository,
             CurrentUserService currentUserService,
-            TaskStatusTransitionPolicy transitionPolicy
+            TaskStatusTransitionPolicy transitionPolicy,
+            TaskActivityService taskActivityService
     ) {
         this.taskRepository = taskRepository;
         this.currentUserService = currentUserService;
         this.transitionPolicy = transitionPolicy;
+        this.taskActivityService = taskActivityService;
     }
 
     @Override
@@ -64,8 +68,11 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
         String normalizedReason = normalizeReason(reason);
         validateTransition(task.getStatus(), targetStatus, normalizedReason);
 
+        TaskStatus previousStatus = task.getStatus();
         task.setStatus(targetStatus);
-        return taskRepository.save(task);
+        Task updatedTask = taskRepository.save(task);
+        taskActivityService.recordStatusChanged(updatedTask, currentUser, previousStatus, targetStatus, normalizedReason);
+        return updatedTask;
     }
 
     private void validateTransition(TaskStatus currentStatus, TaskStatus targetStatus, String reason) {
