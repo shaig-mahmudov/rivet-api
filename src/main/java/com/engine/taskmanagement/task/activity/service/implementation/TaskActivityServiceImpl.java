@@ -135,6 +135,51 @@ public class TaskActivityServiceImpl implements TaskActivityService {
 
     @Override
     @Transactional
+    public void recordCommentAdded(Task task, User actor, String body) {
+        record(
+                task,
+                actor,
+                TaskActivityType.COMMENT_ADDED,
+                null,
+                body,
+                "Comment added",
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordCommentUpdated(Task task, User actor, String oldBody, String newBody) {
+        if (Objects.equals(oldBody, newBody)) {
+            return;
+        }
+        record(
+                task,
+                actor,
+                TaskActivityType.COMMENT_UPDATED,
+                oldBody,
+                newBody,
+                "Comment updated",
+                null
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordCommentDeleted(Task task, User actor, String body) {
+        record(
+                task,
+                actor,
+                TaskActivityType.COMMENT_DELETED,
+                body,
+                null,
+                "Comment deleted",
+                null
+        );
+    }
+
+    @Override
+    @Transactional
     public void recordAcceptanceCriteriaAdded(Task task, User actor, String text) {
         record(
                 task,
