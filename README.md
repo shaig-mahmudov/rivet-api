@@ -25,6 +25,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task status and priority update endpoints
 - Task status transition endpoint with workflow validation and reason-required transitions
 - Task activity timeline for task creation and important task changes
+- Manual acceptance criteria with completion tracking
 - Task search by title and description
 - Task classification by type and optional severity
 - Task technical context and expected outcome fields
@@ -208,6 +209,13 @@ POST   /api/tasks/{id}/status
 POST   /api/tasks/{id}/transitions
 POST   /api/tasks/{id}/priority
 GET    /api/tasks/{id}/timeline
+POST   /api/tasks/{id}/acceptance-criteria
+POST   /api/tasks/{id}/acceptance-criteria/bulk
+GET    /api/tasks/{id}/acceptance-criteria
+PATCH  /api/tasks/{id}/acceptance-criteria/{criteriaId}
+PATCH  /api/tasks/{id}/acceptance-criteria/{criteriaId}/complete
+PATCH  /api/tasks/{id}/acceptance-criteria/{criteriaId}/reopen
+DELETE /api/tasks/{id}/acceptance-criteria/{criteriaId}
 ```
 
 Create task:
@@ -323,6 +331,7 @@ REOPENED -> CANCELLED
 ```
 
 Reason is required for `IN_PROGRESS -> BLOCKED`, `IN_REVIEW -> IN_PROGRESS`, `IN_REVIEW -> BLOCKED`, and `DONE -> REOPENED`.
+Tasks with acceptance criteria cannot transition to `DONE` while any criteria are incomplete.
 
 Change priority:
 
@@ -339,6 +348,36 @@ GET /api/tasks/42/timeline?page=0&size=20
 ```
 
 Task activity records are created by task workflows and are read-only from the public API.
+
+Acceptance criteria:
+
+```text
+POST /api/tasks/42/acceptance-criteria
+```
+
+```json
+{
+  "text": "Old refresh token becomes invalid after successful refresh."
+}
+```
+
+Bulk create:
+
+```text
+POST /api/tasks/42/acceptance-criteria/bulk
+```
+
+```json
+{
+  "items": [
+    "Old refresh token becomes invalid after successful refresh.",
+    "Expired refresh token returns 401 Unauthorized.",
+    "Tests cover successful refresh and expired token scenarios."
+  ]
+}
+```
+
+Criteria can be listed, updated, deleted, completed, and reopened through the nested task endpoints.
 
 ## Notes
 
