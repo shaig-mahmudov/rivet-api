@@ -24,6 +24,12 @@ public interface TaskActivityService {
 
     void recordSeverityChanged(Task task, User actor, Severity oldSeverity, Severity newSeverity);
 
+    void recordCommentAdded(Task task, User actor, String body);
+
+    void recordCommentUpdated(Task task, User actor, String oldBody, String newBody);
+
+    void recordCommentDeleted(Task task, User actor, String body);
+
     void recordAcceptanceCriteriaAdded(Task task, User actor, String text);
 
     void recordAcceptanceCriteriaUpdated(Task task, User actor, String oldText, String newText);
