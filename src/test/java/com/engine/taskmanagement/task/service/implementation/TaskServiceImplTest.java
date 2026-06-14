@@ -9,6 +9,10 @@ import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.activity.entity.TaskActivity;
 import com.engine.taskmanagement.task.activity.enums.TaskActivityType;
 import com.engine.taskmanagement.task.activity.repository.TaskActivityRepository;
+import com.engine.taskmanagement.task.criteria.dto.request.CreateAcceptanceCriteriaRequest;
+import com.engine.taskmanagement.task.criteria.dto.request.UpdateAcceptanceCriteriaRequest;
+import com.engine.taskmanagement.task.criteria.dto.response.AcceptanceCriteriaResponse;
+import com.engine.taskmanagement.task.criteria.service.abstraction.AcceptanceCriteriaService;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
@@ -55,6 +59,9 @@ class TaskServiceImplTest {
 
     @Autowired
     private TaskStatusTransitionService taskStatusTransitionService;
+
+    @Autowired
+    private AcceptanceCriteriaService acceptanceCriteriaService;
 
     @Autowired
     private TaskRepository taskRepository;
@@ -444,6 +451,61 @@ class TaskServiceImplTest {
     }
 
     @Test
+    void transitionTaskStatusRejectsDoneWhenAcceptanceCriteriaAreIncomplete() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Incomplete criteria task"));
+        setStoredStatus(task.getId(), TaskStatus.IN_REVIEW);
+        acceptanceCriteriaService.create(task.getId(), acceptanceCriteriaRequest("Tests cover token reuse"));
+
+        assertThatThrownBy(() -> taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.DONE, null)
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("acceptance criteria are incomplete");
+    }
+
+    @Test
+    void transitionTaskStatusAllowsDoneWhenAcceptanceCriteriaAreComplete() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Complete criteria task"));
+        setStoredStatus(task.getId(), TaskStatus.IN_REVIEW);
+        AcceptanceCriteriaResponse criteria = acceptanceCriteriaService.create(
+                task.getId(),
+                acceptanceCriteriaRequest("Tests cover token reuse")
+        );
+        acceptanceCriteriaService.complete(task.getId(), criteria.getId());
+
+        TaskTransitionResponse response = taskStatusTransitionService.transitionTaskStatus(
+                task.getId(),
+                transitionRequest(TaskStatus.DONE, null)
+        );
+
+        assertThat(response.getCurrentStatus()).isEqualTo(TaskStatus.DONE);
+    }
+
+    @Test
+    void acceptanceCriteriaActionsRecordActivities() {
+        TaskResponse task = taskService.createTask(createTaskRequest("Criteria activity task"));
+        AcceptanceCriteriaResponse criteria = acceptanceCriteriaService.create(
+                task.getId(),
+                acceptanceCriteriaRequest("Original criterion")
+        );
+        UpdateAcceptanceCriteriaRequest updateRequest = new UpdateAcceptanceCriteriaRequest();
+        updateRequest.setText("Updated criterion");
+
+        acceptanceCriteriaService.update(task.getId(), criteria.getId(), updateRequest);
+        acceptanceCriteriaService.complete(task.getId(), criteria.getId());
+        acceptanceCriteriaService.reopen(task.getId(), criteria.getId());
+
+        assertThat(activitiesFor(task.getId()))
+                .extracting(TaskActivity::getType)
+                .contains(
+                        TaskActivityType.ACCEPTANCE_CRITERIA_ADDED,
+                        TaskActivityType.ACCEPTANCE_CRITERIA_UPDATED,
+                        TaskActivityType.ACCEPTANCE_CRITERIA_COMPLETED
+                );
+    }
+
+    @Test
     void changeTaskPriorityUpdatesActiveTaskPriority() {
         TaskResponse task = taskService.createTask(createTaskRequest("Raise priority"));
         ChangeTaskPriorityRequest request = new ChangeTaskPriorityRequest();
@@ -819,6 +881,12 @@ class TaskServiceImplTest {
         TaskTransitionRequest request = new TaskTransitionRequest();
         request.setTargetStatus(targetStatus);
         request.setReason(reason);
+        return request;
+    }
+
+    private CreateAcceptanceCriteriaRequest acceptanceCriteriaRequest(String text) {
+        CreateAcceptanceCriteriaRequest request = new CreateAcceptanceCriteriaRequest();
+        request.setText(text);
         return request;
     }
 
