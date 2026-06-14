@@ -2,6 +2,7 @@ package com.engine.taskmanagement.task.entity;
 
 import com.engine.taskmanagement.common.entity.BaseEntity;
 import com.engine.taskmanagement.project.entity.Project;
+import com.engine.taskmanagement.task.activity.entity.TaskActivity;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -13,6 +14,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "tasks")
@@ -56,5 +59,8 @@ public class Task extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")
     private User assignee;
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TaskActivity> activities = new ArrayList<>();
 
 }
