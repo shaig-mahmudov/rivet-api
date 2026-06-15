@@ -25,6 +25,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task status and priority update endpoints
 - Task status transition endpoint with workflow validation and reason-required transitions
 - Task activity timeline for task creation and important task changes
+- Task dependency relationships with circular dependency and completion guards
 - Manual acceptance criteria with completion tracking
 - Task comments for discussion, review notes, blockers, and context
 - Task search by title and description
@@ -210,6 +211,10 @@ POST   /api/tasks/{id}/status
 POST   /api/tasks/{id}/transitions
 POST   /api/tasks/{id}/priority
 GET    /api/tasks/{id}/timeline
+POST   /api/tasks/{id}/dependencies/{dependsOnTaskId}
+DELETE /api/tasks/{id}/dependencies/{dependsOnTaskId}
+GET    /api/tasks/{id}/dependencies
+GET    /api/tasks/{id}/blocked-tasks
 POST   /api/tasks/{id}/comments
 GET    /api/tasks/{id}/comments
 PATCH  /api/tasks/{id}/comments/{commentId}
@@ -336,7 +341,7 @@ REOPENED -> CANCELLED
 ```
 
 Reason is required for `IN_PROGRESS -> BLOCKED`, `IN_REVIEW -> IN_PROGRESS`, `IN_REVIEW -> BLOCKED`, and `DONE -> REOPENED`.
-Tasks with acceptance criteria cannot transition to `DONE` while any criteria are incomplete.
+Tasks with acceptance criteria cannot transition to `DONE` while any criteria are incomplete. Tasks with dependencies cannot transition to `DONE` while any dependency is not `DONE`.
 
 Change priority:
 
@@ -353,6 +358,21 @@ GET /api/tasks/42/timeline?page=0&size=20
 ```
 
 Task activity records are created by task workflows and are read-only from the public API.
+
+Task dependencies:
+
+```text
+POST /api/tasks/20/dependencies/10
+```
+
+Task 20 is blocked by task 10. Dependencies can be listed from the blocked task, and tasks blocked by a dependency can be listed from the dependency task.
+
+```text
+GET /api/tasks/20/dependencies
+GET /api/tasks/10/blocked-tasks
+```
+
+Self-dependencies, duplicate dependencies, dependencies across different projects, and circular dependencies are rejected.
 
 Task comments:
 
