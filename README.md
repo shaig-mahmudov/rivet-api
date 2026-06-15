@@ -25,7 +25,9 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task status and priority update endpoints
 - Task status transition endpoint with workflow validation and reason-required transitions
 - Task activity timeline for task creation and important task changes
+- Task dependency relationships with circular dependency and completion guards
 - Manual acceptance criteria with completion tracking
+- AI-generated acceptance criteria draft suggestions
 - Task comments for discussion, review notes, blockers, and context
 - Task search by title and description
 - Task classification by type and optional severity
@@ -200,6 +202,7 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 POST   /api/tasks
 GET    /api/tasks
 GET    /api/tasks/deleted
+GET    /api/tasks/blocked
 GET    /api/tasks/{id}
 PUT    /api/tasks/{id}
 PATCH  /api/tasks/{id}
@@ -210,6 +213,11 @@ POST   /api/tasks/{id}/status
 POST   /api/tasks/{id}/transitions
 POST   /api/tasks/{id}/priority
 GET    /api/tasks/{id}/timeline
+POST   /api/tasks/{id}/dependencies/{dependsOnTaskId}
+DELETE /api/tasks/{id}/dependencies/{dependsOnTaskId}
+GET    /api/tasks/{id}/dependencies
+GET    /api/tasks/{id}/blocked-tasks
+POST   /api/tasks/{id}/ai/acceptance-criteria/draft
 POST   /api/tasks/{id}/comments
 GET    /api/tasks/{id}/comments
 PATCH  /api/tasks/{id}/comments/{commentId}
@@ -336,7 +344,7 @@ REOPENED -> CANCELLED
 ```
 
 Reason is required for `IN_PROGRESS -> BLOCKED`, `IN_REVIEW -> IN_PROGRESS`, `IN_REVIEW -> BLOCKED`, and `DONE -> REOPENED`.
-Tasks with acceptance criteria cannot transition to `DONE` while any criteria are incomplete.
+Tasks with acceptance criteria cannot transition to `DONE` while any criteria are incomplete. Tasks with dependencies cannot transition to `DONE` while any dependency is not `DONE`.
 
 Change priority:
 
@@ -353,6 +361,22 @@ GET /api/tasks/42/timeline?page=0&size=20
 ```
 
 Task activity records are created by task workflows and are read-only from the public API.
+
+Task dependencies:
+
+```text
+POST /api/tasks/20/dependencies/10
+```
+
+Task 20 is blocked by task 10. Dependencies can be listed from the blocked task, and tasks blocked by a dependency can be listed from the dependency task.
+
+```text
+GET /api/tasks/20/dependencies
+GET /api/tasks/10/blocked-tasks
+GET /api/tasks/blocked
+```
+
+`GET /api/tasks/blocked` lists visible tasks that currently have at least one incomplete dependency. Self-dependencies, duplicate dependencies, dependencies across different projects, and circular dependencies are rejected.
 
 Task comments:
 
@@ -402,6 +426,29 @@ POST /api/tasks/42/acceptance-criteria/bulk
 ```
 
 Criteria can be listed, updated, deleted, completed, and reopened through the nested task endpoints.
+
+AI acceptance criteria drafts:
+
+```text
+POST /api/tasks/42/ai/acceptance-criteria/draft
+```
+
+The AI endpoint returns draft suggestions only. It does not save acceptance criteria or record activity events. Users can review the returned suggestions and save selected items with `POST /api/tasks/42/acceptance-criteria/bulk`.
+
+Example response:
+
+```json
+{
+  "taskId": 42,
+  "suggestions": [
+    "Old refresh token becomes invalid after successful refresh.",
+    "Expired refresh token returns 401 Unauthorized.",
+    "Refresh token reuse is detected and rejected."
+  ]
+}
+```
+
+AI provider credentials must come from environment configuration and must not be committed. The default provider is disabled until a real provider is configured.
 
 ## Notes
 

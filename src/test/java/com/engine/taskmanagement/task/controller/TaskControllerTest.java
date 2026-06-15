@@ -1,5 +1,9 @@
 package com.engine.taskmanagement.task.controller;
 
+import com.engine.taskmanagement.ai.AiProvider;
+import com.engine.taskmanagement.ai.AiProviderException;
+import com.engine.taskmanagement.ai.AiRequest;
+import com.engine.taskmanagement.ai.AiResponse;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
@@ -16,6 +20,8 @@ import com.engine.taskmanagement.task.criteria.dto.request.BulkCreateAcceptanceC
 import com.engine.taskmanagement.task.criteria.dto.request.CreateAcceptanceCriteriaRequest;
 import com.engine.taskmanagement.task.criteria.dto.request.UpdateAcceptanceCriteriaRequest;
 import com.engine.taskmanagement.task.criteria.dto.response.AcceptanceCriteriaResponse;
+import com.engine.taskmanagement.task.dependency.dto.response.TaskDependencyResponse;
+import com.engine.taskmanagement.task.dependency.repository.TaskDependencyRepository;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -32,7 +38,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -55,6 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TaskControllerTest.AiProviderTestConfig.class)
 class TaskControllerTest {
 
     @Autowired
@@ -64,6 +75,9 @@ class TaskControllerTest {
 
     @Autowired
     private TaskRepository taskRepository;
+
+    @Autowired
+    private TaskDependencyRepository taskDependencyRepository;
 
     @Autowired
     private ProjectRepository projectRepository;
@@ -77,8 +91,13 @@ class TaskControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private TestAiProvider testAiProvider;
+
     @BeforeEach
     void setUp() {
+        testAiProvider.reset();
+        taskDependencyRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
@@ -411,6 +430,216 @@ class TaskControllerTest {
     }
 
     @Test
+    void addTaskDependencyReturnsCreatedDependency() throws Exception {
+        TaskResponse dependency = createTask("Refactor token storage");
+        TaskResponse blockedTask = createTask("Add refresh token rotation");
+
+        mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", blockedTask.getId(), dependency.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.taskId").value(blockedTask.getId()))
+                .andExpect(jsonPath("$.dependsOnTaskId").value(dependency.getId()))
+                .andExpect(jsonPath("$.dependsOnTaskTitle").value("Refactor token storage"))
+                .andExpect(jsonPath("$.dependsOnTaskStatus").value("TODO"))
+                .andExpect(jsonPath("$.createdById").isNumber());
+    }
+
+    @Test
+    void removeTaskDependencyDeletesDependency() throws Exception {
+        TaskResponse dependency = createTask("Remove dependency source");
+        TaskResponse blockedTask = createTask("Remove dependency target");
+        createDependency(blockedTask.getId(), dependency.getId(), userToken());
+
+        mockMvc.perform(delete("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", blockedTask.getId(), dependency.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/tasks/{taskId}/dependencies", blockedTask.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void listTaskDependenciesReturnsDependenciesForTask() throws Exception {
+        TaskResponse dependency = createTask("Listed dependency");
+        TaskResponse blockedTask = createTask("Blocked by listed dependency");
+        TaskResponse otherTask = createTask("Other dependency task");
+        createDependency(blockedTask.getId(), dependency.getId(), userToken());
+        createDependency(otherTask.getId(), dependency.getId(), userToken());
+
+        mockMvc.perform(get("/api/tasks/{taskId}/dependencies", blockedTask.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].taskId").value(blockedTask.getId()))
+                .andExpect(jsonPath("$[0].dependsOnTaskId").value(dependency.getId()));
+    }
+
+    @Test
+    void listBlockedTasksReturnsTasksBlockedByDependency() throws Exception {
+        TaskResponse dependency = createTask("Common dependency");
+        TaskResponse firstBlockedTask = createTask("First blocked task");
+        TaskResponse secondBlockedTask = createTask("Second blocked task");
+        createDependency(firstBlockedTask.getId(), dependency.getId(), userToken());
+        createDependency(secondBlockedTask.getId(), dependency.getId(), userToken());
+
+        mockMvc.perform(get("/api/tasks/{taskId}/blocked-tasks", dependency.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[*].id", containsInAnyOrder(
+                        Math.toIntExact(firstBlockedTask.getId()),
+                        Math.toIntExact(secondBlockedTask.getId())
+                )));
+    }
+
+    @Test
+    void listGlobalBlockedTasksReturnsVisibleTasksWithIncompleteDependencies() throws Exception {
+        TaskResponse incompleteDependency = createTask("Incomplete global dependency");
+        TaskResponse secondIncompleteDependency = createTask("Second incomplete global dependency");
+        TaskResponse blockedTask = createTask("Globally blocked task");
+        TaskResponse completedDependency = createTask("Completed global dependency");
+        TaskResponse unblockedTask = createTask("Unblocked by done dependency");
+        TaskResponse privateDependency = createTask("Private global dependency", null, null, adminToken());
+        TaskResponse privateBlockedTask = createTask("Private globally blocked task", null, null, adminToken());
+
+        createDependency(blockedTask.getId(), incompleteDependency.getId(), userToken());
+        createDependency(blockedTask.getId(), secondIncompleteDependency.getId(), userToken());
+        changeStatus(completedDependency.getId(), TaskStatus.DONE);
+        createDependency(unblockedTask.getId(), completedDependency.getId(), userToken());
+        createDependency(privateBlockedTask.getId(), privateDependency.getId(), adminToken());
+
+        mockMvc.perform(get("/api/tasks/blocked")
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(blockedTask.getId()))
+                .andExpect(jsonPath("$[0].title").value("Globally blocked task"));
+    }
+
+    @Test
+    void addTaskDependencyRejectsSelfDependency() throws Exception {
+        TaskResponse task = createTask("Self dependency task");
+
+        mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", task.getId(), task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("A task cannot depend on itself"));
+    }
+
+    @Test
+    void addTaskDependencyRejectsDuplicateDependency() throws Exception {
+        TaskResponse dependency = createTask("Duplicate dependency");
+        TaskResponse blockedTask = createTask("Duplicate blocked task");
+        createDependency(blockedTask.getId(), dependency.getId(), userToken());
+
+        mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", blockedTask.getId(), dependency.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Task dependency already exists"));
+    }
+
+    @Test
+    void addTaskDependencyRejectsDifferentProjects() throws Exception {
+        User owner = createUser("dependency-owner@example.com");
+        Project firstProject = createProject("Dependency project A", owner);
+        Project secondProject = createProject("Dependency project B", owner);
+        String ownerToken = tokenFor(owner);
+        TaskResponse dependency = createTaskInProject("Cross-project dependency", firstProject.getId(), owner.getId(), ownerToken);
+        TaskResponse blockedTask = createTaskInProject("Cross-project blocked task", secondProject.getId(), owner.getId(), ownerToken);
+
+        mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", blockedTask.getId(), dependency.getId())
+                        .header("Authorization", "Bearer " + ownerToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Dependent tasks must belong to the same project"));
+    }
+
+    @Test
+    void addTaskDependencyRejectsCircularDependency() throws Exception {
+        TaskResponse taskA = createTask("Task A");
+        TaskResponse taskB = createTask("Task B");
+        TaskResponse taskC = createTask("Task C");
+        createDependency(taskB.getId(), taskC.getId(), userToken());
+        createDependency(taskC.getId(), taskA.getId(), userToken());
+
+        mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", taskA.getId(), taskB.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Circular task dependency is not allowed"));
+    }
+
+    @Test
+    void taskCannotMoveToDoneWhenDependenciesAreIncomplete() throws Exception {
+        TaskResponse dependency = createTask("Incomplete dependency");
+        TaskResponse blockedTask = createTask("Cannot finish yet");
+        createDependency(blockedTask.getId(), dependency.getId(), userToken());
+        changeStatus(blockedTask.getId(), TaskStatus.IN_REVIEW);
+        TaskTransitionRequest request = new TaskTransitionRequest();
+        request.setTargetStatus(TaskStatus.DONE);
+
+        mockMvc.perform(post("/api/tasks/{id}/transitions", blockedTask.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("TASK_HAS_INCOMPLETE_DEPENDENCIES"))
+                .andExpect(jsonPath("$.message").value("Task cannot be completed because it depends on unfinished tasks."))
+                .andExpect(jsonPath("$.details[0].taskId").value(dependency.getId()))
+                .andExpect(jsonPath("$.details[0].title").value("Incomplete dependency"))
+                .andExpect(jsonPath("$.details[0].status").value("TODO"));
+    }
+
+    @Test
+    void taskCanMoveToDoneAfterDependenciesAreCompleted() throws Exception {
+        TaskResponse dependency = createTask("Completed dependency");
+        TaskResponse blockedTask = createTask("Can finish after dependency");
+        changeStatus(dependency.getId(), TaskStatus.DONE);
+        createDependency(blockedTask.getId(), dependency.getId(), userToken());
+        changeStatus(blockedTask.getId(), TaskStatus.IN_REVIEW);
+        TaskTransitionRequest request = new TaskTransitionRequest();
+        request.setTargetStatus(TaskStatus.DONE);
+
+        mockMvc.perform(post("/api/tasks/{id}/transitions", blockedTask.getId())
+                        .header("Authorization", "Bearer " + userToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentStatus").value("DONE"));
+    }
+
+    @Test
+    void unauthorizedUserCannotManageDependencies() throws Exception {
+        TaskResponse privateTask = createTask("Private dependency task", null, null, adminToken());
+        TaskResponse userTask = createTask("Visible user task");
+
+        mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", privateTask.getId(), userTask.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void dependencyActionsRecordActivityEvents() throws Exception {
+        TaskResponse dependency = createTask("Activity dependency");
+        TaskResponse blockedTask = createTask("Dependency activity task");
+        createDependency(blockedTask.getId(), dependency.getId(), userToken());
+
+        mockMvc.perform(delete("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", blockedTask.getId(), dependency.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/tasks/{id}/timeline", blockedTask.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].type", containsInAnyOrder(
+                        TaskActivityType.TASK_CREATED.name(),
+                        TaskActivityType.DEPENDENCY_ADDED.name(),
+                        TaskActivityType.DEPENDENCY_REMOVED.name()
+                )));
+    }
+
+    @Test
     void getTaskTimelineReturnsActivitiesForRequestedTask() throws Exception {
         TaskResponse task = createTask("Timeline task");
         createTask("Other timeline task");
@@ -560,6 +789,127 @@ class TaskControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void generateAiAcceptanceCriteriaDraftReturnsSuggestions() throws Exception {
+        testAiProvider.setContent("""
+                [
+                  "Old refresh token becomes invalid after successful refresh.",
+                  "Expired refresh token returns 401 Unauthorized.",
+                  "Refresh token reuse is detected and rejected."
+                ]
+                """);
+        CreateTaskRequest request = createTaskRequest("Add refresh token rotation");
+        request.setTechnicalContext("Spring Security JWT refresh token storage");
+        request.setExpectedOutcome("Refresh tokens rotate safely and reused tokens are rejected.");
+        TaskResponse task = createTask(request, userToken());
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.suggestions.length()").value(3))
+                .andExpect(jsonPath("$.suggestions[0]").value("Old refresh token becomes invalid after successful refresh."))
+                .andExpect(jsonPath("$.suggestions[2]").value("Refresh token reuse is detected and rejected."));
+
+        assertThat(testAiProvider.getLastRequest().getPrompt())
+                .contains("Task title: Add refresh token rotation")
+                .contains("Technical context: Spring Security JWT refresh token storage")
+                .contains("Return only a JSON array of strings.");
+    }
+
+    @Test
+    void generateAiAcceptanceCriteriaDraftDoesNotSaveSuggestions() throws Exception {
+        testAiProvider.setContent("""
+                [
+                  "Successful refresh rotates the refresh token.",
+                  "Expired refresh tokens return 401 Unauthorized.",
+                  "Refresh token reuse is rejected."
+                ]
+                """);
+        TaskResponse task = createTask("Draft only task");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tasks/{id}/acceptance-criteria", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void generateAiAcceptanceCriteriaDraftRemovesDuplicatesAndExistingCriteria() throws Exception {
+        testAiProvider.setContent("""
+                [
+                  "Existing criterion",
+                  "Successful refresh rotates the refresh token.",
+                  "successful refresh rotates the refresh token.",
+                  "Expired refresh tokens return 401 Unauthorized.",
+                  "Refresh token reuse is rejected."
+                ]
+                """);
+        TaskResponse task = createTask("Dedupe draft task");
+        createAcceptanceCriteria(task.getId(), "Existing criterion");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestions.length()").value(3))
+                .andExpect(jsonPath("$.suggestions[*]", containsInAnyOrder(
+                        "Successful refresh rotates the refresh token.",
+                        "Expired refresh tokens return 401 Unauthorized.",
+                        "Refresh token reuse is rejected."
+                )));
+    }
+
+    @Test
+    void unauthorizedUserCannotGenerateAiAcceptanceCriteriaDraft() throws Exception {
+        TaskResponse task = createTask("Private AI draft task", null, null, adminToken());
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void providerFailureReturnsCleanAiProviderError() throws Exception {
+        testAiProvider.setFailure(true);
+        TaskResponse task = createTask("Provider failure task");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("AI_PROVIDER_UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("Acceptance criteria suggestions could not be generated right now."));
+    }
+
+    @Test
+    void malformedProviderResponseReturnsCleanInvalidResponseError() throws Exception {
+        testAiProvider.setContent("not-json");
+        TaskResponse task = createTask("Malformed AI draft task");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error").value("AI_INVALID_RESPONSE"))
+                .andExpect(jsonPath("$.message").value("The AI provider returned an invalid response."));
+    }
+
+    @Test
+    void emptyTaskContextReturnsValidationError() throws Exception {
+        CreateTaskRequest request = createTaskRequest("Bare task");
+        request.setDescription(null);
+        request.setTechnicalContext(null);
+        request.setExpectedOutcome(null);
+        TaskResponse task = createTask(request, userToken());
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Task needs description, technical context, expected outcome, or project context for AI suggestions"));
     }
 
     @Test
@@ -1007,6 +1357,17 @@ class TaskControllerTest {
         return objectMapper.readValue(content, TaskCommentResponse.class);
     }
 
+    private TaskDependencyResponse createDependency(Long taskId, Long dependsOnTaskId, String token) throws Exception {
+        String content = mockMvc.perform(post("/api/tasks/{taskId}/dependencies/{dependsOnTaskId}", taskId, dependsOnTaskId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readValue(content, TaskDependencyResponse.class);
+    }
+
     private CreateTaskCommentRequest taskCommentRequest(TaskCommentType type, String body) {
         CreateTaskCommentRequest request = new CreateTaskCommentRequest();
         request.setType(type);
@@ -1030,5 +1391,54 @@ class TaskControllerTest {
             case REOPENED -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE, TaskStatus.REOPENED);
             case CANCELLED -> List.of(TaskStatus.CANCELLED);
         };
+    }
+
+    @TestConfiguration
+    static class AiProviderTestConfig {
+
+        @Bean
+        @Primary
+        TestAiProvider testAiProvider() {
+            return new TestAiProvider();
+        }
+    }
+
+    static class TestAiProvider implements AiProvider {
+        private String content;
+        private boolean failure;
+        private AiRequest lastRequest;
+
+        @Override
+        public AiResponse generate(AiRequest request) {
+            this.lastRequest = request;
+            if (failure) {
+                throw new AiProviderException("Raw provider failure");
+            }
+            return new AiResponse(content);
+        }
+
+        void setContent(String content) {
+            this.content = content;
+        }
+
+        void setFailure(boolean failure) {
+            this.failure = failure;
+        }
+
+        AiRequest getLastRequest() {
+            return lastRequest;
+        }
+
+        void reset() {
+            this.content = """
+                    [
+                      "Default generated criterion one.",
+                      "Default generated criterion two.",
+                      "Default generated criterion three."
+                    ]
+                    """;
+            this.failure = false;
+            this.lastRequest = null;
+        }
     }
 }

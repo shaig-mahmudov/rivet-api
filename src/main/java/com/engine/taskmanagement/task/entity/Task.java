@@ -5,6 +5,7 @@ import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.task.activity.entity.TaskActivity;
 import com.engine.taskmanagement.task.comment.entity.TaskComment;
 import com.engine.taskmanagement.task.criteria.entity.AcceptanceCriteria;
+import com.engine.taskmanagement.task.dependency.entity.TaskDependency;
 import com.engine.taskmanagement.task.enums.Severity;
 import com.engine.taskmanagement.task.enums.TaskPriority;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -70,5 +71,11 @@ public class Task extends BaseEntity {
 
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TaskComment> comments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TaskDependency> dependencies = new ArrayList<>();
+
+    @OneToMany(mappedBy = "dependsOnTask", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TaskDependency> blockedTasks = new ArrayList<>();
 
 }
