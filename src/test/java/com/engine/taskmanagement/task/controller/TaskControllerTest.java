@@ -1,5 +1,9 @@
 package com.engine.taskmanagement.task.controller;
 
+import com.engine.taskmanagement.ai.AiProvider;
+import com.engine.taskmanagement.ai.AiProviderException;
+import com.engine.taskmanagement.ai.AiRequest;
+import com.engine.taskmanagement.ai.AiResponse;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskPriorityRequest;
 import com.engine.taskmanagement.task.dto.request.ChangeTaskStatusRequest;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
@@ -34,7 +38,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -57,6 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TaskControllerTest.AiProviderTestConfig.class)
 class TaskControllerTest {
 
     @Autowired
@@ -82,8 +91,12 @@ class TaskControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private TestAiProvider testAiProvider;
+
     @BeforeEach
     void setUp() {
+        testAiProvider.reset();
         taskDependencyRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
@@ -779,6 +792,127 @@ class TaskControllerTest {
     }
 
     @Test
+    void generateAiAcceptanceCriteriaDraftReturnsSuggestions() throws Exception {
+        testAiProvider.setContent("""
+                [
+                  "Old refresh token becomes invalid after successful refresh.",
+                  "Expired refresh token returns 401 Unauthorized.",
+                  "Refresh token reuse is detected and rejected."
+                ]
+                """);
+        CreateTaskRequest request = createTaskRequest("Add refresh token rotation");
+        request.setTechnicalContext("Spring Security JWT refresh token storage");
+        request.setExpectedOutcome("Refresh tokens rotate safely and reused tokens are rejected.");
+        TaskResponse task = createTask(request, userToken());
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.suggestions.length()").value(3))
+                .andExpect(jsonPath("$.suggestions[0]").value("Old refresh token becomes invalid after successful refresh."))
+                .andExpect(jsonPath("$.suggestions[2]").value("Refresh token reuse is detected and rejected."));
+
+        assertThat(testAiProvider.getLastRequest().getPrompt())
+                .contains("Task title: Add refresh token rotation")
+                .contains("Technical context: Spring Security JWT refresh token storage")
+                .contains("Return only a JSON array of strings.");
+    }
+
+    @Test
+    void generateAiAcceptanceCriteriaDraftDoesNotSaveSuggestions() throws Exception {
+        testAiProvider.setContent("""
+                [
+                  "Successful refresh rotates the refresh token.",
+                  "Expired refresh tokens return 401 Unauthorized.",
+                  "Refresh token reuse is rejected."
+                ]
+                """);
+        TaskResponse task = createTask("Draft only task");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tasks/{id}/acceptance-criteria", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void generateAiAcceptanceCriteriaDraftRemovesDuplicatesAndExistingCriteria() throws Exception {
+        testAiProvider.setContent("""
+                [
+                  "Existing criterion",
+                  "Successful refresh rotates the refresh token.",
+                  "successful refresh rotates the refresh token.",
+                  "Expired refresh tokens return 401 Unauthorized.",
+                  "Refresh token reuse is rejected."
+                ]
+                """);
+        TaskResponse task = createTask("Dedupe draft task");
+        createAcceptanceCriteria(task.getId(), "Existing criterion");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestions.length()").value(3))
+                .andExpect(jsonPath("$.suggestions[*]", containsInAnyOrder(
+                        "Successful refresh rotates the refresh token.",
+                        "Expired refresh tokens return 401 Unauthorized.",
+                        "Refresh token reuse is rejected."
+                )));
+    }
+
+    @Test
+    void unauthorizedUserCannotGenerateAiAcceptanceCriteriaDraft() throws Exception {
+        TaskResponse task = createTask("Private AI draft task", null, null, adminToken());
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void providerFailureReturnsCleanAiProviderError() throws Exception {
+        testAiProvider.setFailure(true);
+        TaskResponse task = createTask("Provider failure task");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("AI_PROVIDER_UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("Acceptance criteria suggestions could not be generated right now."));
+    }
+
+    @Test
+    void malformedProviderResponseReturnsCleanInvalidResponseError() throws Exception {
+        testAiProvider.setContent("not-json");
+        TaskResponse task = createTask("Malformed AI draft task");
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error").value("AI_INVALID_RESPONSE"))
+                .andExpect(jsonPath("$.message").value("The AI provider returned an invalid response."));
+    }
+
+    @Test
+    void emptyTaskContextReturnsValidationError() throws Exception {
+        CreateTaskRequest request = createTaskRequest("Bare task");
+        request.setDescription(null);
+        request.setTechnicalContext(null);
+        request.setExpectedOutcome(null);
+        TaskResponse task = createTask(request, userToken());
+
+        mockMvc.perform(post("/api/tasks/{id}/ai/acceptance-criteria/draft", task.getId())
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Task needs description, technical context, expected outcome, or project context for AI suggestions"));
+    }
+
+    @Test
     void createTaskCommentReturnsCreatedComment() throws Exception {
         TaskResponse task = createTask("Comment task");
         CreateTaskCommentRequest request = taskCommentRequest(TaskCommentType.BLOCKER, "Auth module migration is not ready.");
@@ -1257,5 +1391,54 @@ class TaskControllerTest {
             case REOPENED -> List.of(TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE, TaskStatus.REOPENED);
             case CANCELLED -> List.of(TaskStatus.CANCELLED);
         };
+    }
+
+    @TestConfiguration
+    static class AiProviderTestConfig {
+
+        @Bean
+        @Primary
+        TestAiProvider testAiProvider() {
+            return new TestAiProvider();
+        }
+    }
+
+    static class TestAiProvider implements AiProvider {
+        private String content;
+        private boolean failure;
+        private AiRequest lastRequest;
+
+        @Override
+        public AiResponse generate(AiRequest request) {
+            this.lastRequest = request;
+            if (failure) {
+                throw new AiProviderException("Raw provider failure");
+            }
+            return new AiResponse(content);
+        }
+
+        void setContent(String content) {
+            this.content = content;
+        }
+
+        void setFailure(boolean failure) {
+            this.failure = failure;
+        }
+
+        AiRequest getLastRequest() {
+            return lastRequest;
+        }
+
+        void reset() {
+            this.content = """
+                    [
+                      "Default generated criterion one.",
+                      "Default generated criterion two.",
+                      "Default generated criterion three."
+                    ]
+                    """;
+            this.failure = false;
+            this.lastRequest = null;
+        }
     }
 }
