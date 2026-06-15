@@ -40,5 +40,9 @@ public interface TaskActivityService {
 
     void recordAcceptanceCriteriaDeleted(Task task, User actor, String text);
 
+    void recordDependencyAdded(Task task, User actor, Task dependsOnTask);
+
+    void recordDependencyRemoved(Task task, User actor, Task dependsOnTask);
+
     Page<TaskActivityResponse> getTaskTimeline(Long taskId, Pageable pageable);
 }

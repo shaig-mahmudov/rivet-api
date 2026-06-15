@@ -3,10 +3,14 @@ package com.engine.taskmanagement.task.service.implementation;
 import com.engine.taskmanagement.auth.service.CurrentUserService;
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.ForbiddenException;
+import com.engine.taskmanagement.common.exception.IncompleteTaskDependenciesException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.task.dto.request.TaskTransitionRequest;
 import com.engine.taskmanagement.task.dto.response.TaskTransitionResponse;
+import com.engine.taskmanagement.task.dependency.dto.response.DependencyTaskResponse;
+import com.engine.taskmanagement.task.dependency.entity.TaskDependency;
+import com.engine.taskmanagement.task.dependency.repository.TaskDependencyRepository;
 import com.engine.taskmanagement.task.entity.Task;
 import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.repository.TaskRepository;
@@ -19,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionService {
@@ -30,19 +35,22 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
     private final TaskStatusTransitionPolicy transitionPolicy;
     private final TaskActivityService taskActivityService;
     private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
+    private final TaskDependencyRepository taskDependencyRepository;
 
     public TaskStatusTransitionServiceImpl(
             TaskRepository taskRepository,
             CurrentUserService currentUserService,
             TaskStatusTransitionPolicy transitionPolicy,
             TaskActivityService taskActivityService,
-            AcceptanceCriteriaRepository acceptanceCriteriaRepository
+            AcceptanceCriteriaRepository acceptanceCriteriaRepository,
+            TaskDependencyRepository taskDependencyRepository
     ) {
         this.taskRepository = taskRepository;
         this.currentUserService = currentUserService;
         this.transitionPolicy = transitionPolicy;
         this.taskActivityService = taskActivityService;
         this.acceptanceCriteriaRepository = acceptanceCriteriaRepository;
+        this.taskDependencyRepository = taskDependencyRepository;
     }
 
     @Override
@@ -99,6 +107,29 @@ public class TaskStatusTransitionServiceImpl implements TaskStatusTransitionServ
         if (TaskStatus.DONE.equals(targetStatus) && acceptanceCriteriaRepository.existsByTaskIdAndCompletedFalse(task.getId())) {
             throw new BadRequestException("Cannot complete task while acceptance criteria are incomplete");
         }
+        if (TaskStatus.DONE.equals(targetStatus)) {
+            validateDependenciesComplete(task);
+        }
+    }
+
+    private void validateDependenciesComplete(Task task) {
+        List<DependencyTaskResponse> incompleteDependencies = taskDependencyRepository
+                .findByTaskIdAndDependsOnTaskStatusNot(task.getId(), TaskStatus.DONE).stream()
+                .map(TaskDependency::getDependsOnTask)
+                .map(this::toDependencyTaskResponse)
+                .toList();
+
+        if (!incompleteDependencies.isEmpty()) {
+            throw new IncompleteTaskDependenciesException(incompleteDependencies);
+        }
+    }
+
+    private DependencyTaskResponse toDependencyTaskResponse(Task task) {
+        DependencyTaskResponse response = new DependencyTaskResponse();
+        response.setTaskId(task.getId());
+        response.setTitle(task.getTitle());
+        response.setStatus(task.getStatus());
+        return response;
     }
 
     private String normalizeReason(String reason) {

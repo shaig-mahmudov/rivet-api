@@ -252,6 +252,34 @@ public class TaskActivityServiceImpl implements TaskActivityService {
     }
 
     @Override
+    @Transactional
+    public void recordDependencyAdded(Task task, User actor, Task dependsOnTask) {
+        record(
+                task,
+                actor,
+                TaskActivityType.DEPENDENCY_ADDED,
+                null,
+                dependsOnTask.getId().toString(),
+                "Dependency added: " + dependsOnTask.getTitle(),
+                "dependsOnTaskId=" + dependsOnTask.getId()
+        );
+    }
+
+    @Override
+    @Transactional
+    public void recordDependencyRemoved(Task task, User actor, Task dependsOnTask) {
+        record(
+                task,
+                actor,
+                TaskActivityType.DEPENDENCY_REMOVED,
+                dependsOnTask.getId().toString(),
+                null,
+                "Dependency removed: " + dependsOnTask.getTitle(),
+                "dependsOnTaskId=" + dependsOnTask.getId()
+        );
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<TaskActivityResponse> getTaskTimeline(Long taskId, Pageable pageable) {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(taskId)

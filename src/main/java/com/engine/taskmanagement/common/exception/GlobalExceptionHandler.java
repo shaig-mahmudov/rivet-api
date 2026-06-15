@@ -122,6 +122,23 @@ public class GlobalExceptionHandler{
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(IncompleteTaskDependenciesException.class)
+    public ResponseEntity<ErrorResponse> handleIncompleteTaskDependencies(
+            IncompleteTaskDependenciesException ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                "TASK_HAS_INCOMPLETE_DEPENDENCIES",
+                ex.getMessage(),
+                request.getRequestURI(),
+                ex.getDependencies()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class
