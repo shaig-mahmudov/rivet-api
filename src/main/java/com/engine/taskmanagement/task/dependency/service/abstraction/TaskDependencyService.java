@@ -14,4 +14,6 @@ public interface TaskDependencyService {
     List<TaskDependencyResponse> listDependencies(Long taskId);
 
     List<TaskResponse> listBlockedTasks(Long taskId);
+
+    List<TaskResponse> listBlockedTasks();
 }

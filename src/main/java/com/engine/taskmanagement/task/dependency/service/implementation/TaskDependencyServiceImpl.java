@@ -13,6 +13,7 @@ import com.engine.taskmanagement.task.dependency.repository.TaskDependencyReposi
 import com.engine.taskmanagement.task.dependency.service.abstraction.TaskDependencyService;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.entity.Task;
+import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.user.entity.User;
@@ -20,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -107,6 +110,23 @@ public class TaskDependencyServiceImpl implements TaskDependencyService {
         return taskDependencyRepository.findByDependsOnTaskIdOrderByCreatedAtAscIdAsc(taskId).stream()
                 .map(TaskDependency::getTask)
                 .filter(blockedTask -> canAccessTask(blockedTask, currentUser))
+                .map(taskMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TaskResponse> listBlockedTasks() {
+        User currentUser = currentUserService.getCurrentUser();
+        Map<Long, Task> blockedTasks = new LinkedHashMap<>();
+
+        taskDependencyRepository.findByDependsOnTaskStatusNotOrderByCreatedAtAscIdAsc(TaskStatus.DONE).stream()
+                .map(TaskDependency::getTask)
+                .filter(task -> task.getDeletedAt() == null)
+                .filter(task -> canAccessTask(task, currentUser))
+                .forEach(task -> blockedTasks.putIfAbsent(task.getId(), task));
+
+        return blockedTasks.values().stream()
                 .map(taskMapper::toResponse)
                 .toList();
     }

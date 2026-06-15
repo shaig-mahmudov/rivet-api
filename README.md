@@ -201,6 +201,7 @@ GET /api/projects/1/tasks?search=invoice&dueDateFrom=2026-06-01&dueDateTo=2026-0
 POST   /api/tasks
 GET    /api/tasks
 GET    /api/tasks/deleted
+GET    /api/tasks/blocked
 GET    /api/tasks/{id}
 PUT    /api/tasks/{id}
 PATCH  /api/tasks/{id}
@@ -370,9 +371,10 @@ Task 20 is blocked by task 10. Dependencies can be listed from the blocked task,
 ```text
 GET /api/tasks/20/dependencies
 GET /api/tasks/10/blocked-tasks
+GET /api/tasks/blocked
 ```
 
-Self-dependencies, duplicate dependencies, dependencies across different projects, and circular dependencies are rejected.
+`GET /api/tasks/blocked` lists visible tasks that currently have at least one incomplete dependency. Self-dependencies, duplicate dependencies, dependencies across different projects, and circular dependencies are rejected.
 
 Task comments:
 

@@ -483,6 +483,30 @@ class TaskControllerTest {
     }
 
     @Test
+    void listGlobalBlockedTasksReturnsVisibleTasksWithIncompleteDependencies() throws Exception {
+        TaskResponse incompleteDependency = createTask("Incomplete global dependency");
+        TaskResponse secondIncompleteDependency = createTask("Second incomplete global dependency");
+        TaskResponse blockedTask = createTask("Globally blocked task");
+        TaskResponse completedDependency = createTask("Completed global dependency");
+        TaskResponse unblockedTask = createTask("Unblocked by done dependency");
+        TaskResponse privateDependency = createTask("Private global dependency", null, null, adminToken());
+        TaskResponse privateBlockedTask = createTask("Private globally blocked task", null, null, adminToken());
+
+        createDependency(blockedTask.getId(), incompleteDependency.getId(), userToken());
+        createDependency(blockedTask.getId(), secondIncompleteDependency.getId(), userToken());
+        changeStatus(completedDependency.getId(), TaskStatus.DONE);
+        createDependency(unblockedTask.getId(), completedDependency.getId(), userToken());
+        createDependency(privateBlockedTask.getId(), privateDependency.getId(), adminToken());
+
+        mockMvc.perform(get("/api/tasks/blocked")
+                        .header("Authorization", "Bearer " + userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(blockedTask.getId()))
+                .andExpect(jsonPath("$[0].title").value("Globally blocked task"));
+    }
+
+    @Test
     void addTaskDependencyRejectsSelfDependency() throws Exception {
         TaskResponse task = createTask("Self dependency task");
 

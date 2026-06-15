@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/tasks/{taskId}")
+@RequestMapping("/api/tasks")
 public class TaskDependencyController {
 
     private final TaskDependencyService taskDependencyService;
@@ -24,7 +24,12 @@ public class TaskDependencyController {
         this.taskDependencyService = taskDependencyService;
     }
 
-    @PostMapping("/dependencies/{dependsOnTaskId}")
+    @GetMapping("/blocked")
+    public ResponseEntity<List<TaskResponse>> listBlockedTasks() {
+        return ResponseEntity.ok(taskDependencyService.listBlockedTasks());
+    }
+
+    @PostMapping("/{taskId}/dependencies/{dependsOnTaskId}")
     public ResponseEntity<TaskDependencyResponse> addDependency(
             @PathVariable Long taskId,
             @PathVariable Long dependsOnTaskId
@@ -33,7 +38,7 @@ public class TaskDependencyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @DeleteMapping("/dependencies/{dependsOnTaskId}")
+    @DeleteMapping("/{taskId}/dependencies/{dependsOnTaskId}")
     public ResponseEntity<Void> removeDependency(
             @PathVariable Long taskId,
             @PathVariable Long dependsOnTaskId
@@ -42,12 +47,12 @@ public class TaskDependencyController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/dependencies")
+    @GetMapping("/{taskId}/dependencies")
     public ResponseEntity<List<TaskDependencyResponse>> listDependencies(@PathVariable Long taskId) {
         return ResponseEntity.ok(taskDependencyService.listDependencies(taskId));
     }
 
-    @GetMapping("/blocked-tasks")
+    @GetMapping("/{taskId}/blocked-tasks")
     public ResponseEntity<List<TaskResponse>> listBlockedTasks(@PathVariable Long taskId) {
         return ResponseEntity.ok(taskDependencyService.listBlockedTasks(taskId));
     }
