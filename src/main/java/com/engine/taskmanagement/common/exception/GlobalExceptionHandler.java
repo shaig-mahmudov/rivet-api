@@ -1,5 +1,7 @@
 package com.engine.taskmanagement.common.exception;
 
+import com.engine.taskmanagement.ai.AiInvalidResponseException;
+import com.engine.taskmanagement.ai.AiProviderException;
 import com.engine.taskmanagement.common.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -137,6 +139,40 @@ public class GlobalExceptionHandler{
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(AiProviderException.class)
+    public ResponseEntity<ErrorResponse> handleAiProviderException(
+            AiProviderException ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "AI_PROVIDER_UNAVAILABLE",
+                "Acceptance criteria suggestions could not be generated right now.",
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
+
+    @ExceptionHandler(AiInvalidResponseException.class)
+    public ResponseEntity<ErrorResponse> handleAiInvalidResponse(
+            AiInvalidResponseException ex,
+            HttpServletRequest request
+    ) {
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_GATEWAY.value(),
+                "AI_INVALID_RESPONSE",
+                "The AI provider returned an invalid response.",
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
     }
 
     @ExceptionHandler({
