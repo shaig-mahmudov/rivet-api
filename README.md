@@ -27,6 +27,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Task activity timeline for task creation and important task changes
 - Task dependency relationships with circular dependency and completion guards
 - Manual acceptance criteria with completion tracking
+- AI-generated acceptance criteria draft suggestions
 - Task comments for discussion, review notes, blockers, and context
 - Task search by title and description
 - Task classification by type and optional severity
@@ -216,6 +217,7 @@ POST   /api/tasks/{id}/dependencies/{dependsOnTaskId}
 DELETE /api/tasks/{id}/dependencies/{dependsOnTaskId}
 GET    /api/tasks/{id}/dependencies
 GET    /api/tasks/{id}/blocked-tasks
+POST   /api/tasks/{id}/ai/acceptance-criteria/draft
 POST   /api/tasks/{id}/comments
 GET    /api/tasks/{id}/comments
 PATCH  /api/tasks/{id}/comments/{commentId}
@@ -424,6 +426,29 @@ POST /api/tasks/42/acceptance-criteria/bulk
 ```
 
 Criteria can be listed, updated, deleted, completed, and reopened through the nested task endpoints.
+
+AI acceptance criteria drafts:
+
+```text
+POST /api/tasks/42/ai/acceptance-criteria/draft
+```
+
+The AI endpoint returns draft suggestions only. It does not save acceptance criteria or record activity events. Users can review the returned suggestions and save selected items with `POST /api/tasks/42/acceptance-criteria/bulk`.
+
+Example response:
+
+```json
+{
+  "taskId": 42,
+  "suggestions": [
+    "Old refresh token becomes invalid after successful refresh.",
+    "Expired refresh token returns 401 Unauthorized.",
+    "Refresh token reuse is detected and rejected."
+  ]
+}
+```
+
+AI provider credentials must come from environment configuration and must not be committed. The default provider is disabled until a real provider is configured.
 
 ## Notes
 
