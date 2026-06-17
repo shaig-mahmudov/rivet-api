@@ -41,6 +41,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Auth register/login with BCrypt password hashing
 - Stateless JWT Bearer authentication
 - Refresh token issuance, rotation, and logout revocation
+- Trusted first-admin bootstrap flow
 - Project and task endpoints require authenticated JWT access
 - Admin-only hard delete endpoints
 - Field-level validation error details
@@ -63,6 +64,7 @@ DB_PASSWORD=your_password
 JWT_SECRET=replace_with_at_least_32_bytes_of_random_secret
 JWT_EXPIRATION_SECONDS=3600
 REFRESH_TOKEN_EXPIRATION_SECONDS=2592000
+ADMIN_BOOTSTRAP_TOKEN=replace_with_one_time_admin_bootstrap_token
 ```
 
 Create the MySQL database before running the app:
@@ -132,6 +134,7 @@ POST /api/auth/register
 POST /api/auth/login
 POST /api/auth/refresh
 POST /api/auth/logout
+POST /api/auth/bootstrap/admin
 ```
 
 Register:
@@ -146,6 +149,20 @@ Register:
 ```
 
 Register always creates a `USER`. Admin users should be created through a trusted admin flow or database seed.
+
+Bootstrap the first admin with a configured `ADMIN_BOOTSTRAP_TOKEN`:
+
+```json
+{
+  "username": "admin",
+  "email": "admin@example.com",
+  "password": "password123",
+  "confirmPassword": "password123",
+  "bootstrapToken": "configured-bootstrap-token"
+}
+```
+
+`POST /api/auth/bootstrap/admin` creates an `ADMIN` only when no active admin user exists. The endpoint is disabled when `ADMIN_BOOTSTRAP_TOKEN` is blank.
 
 Login/register responses include an `accessToken` and `refreshToken`. Project and task endpoints require:
 
@@ -478,7 +495,8 @@ AI provider credentials must come from environment configuration and must not be
 - Regular users can access their own projects, plus tasks assigned to them or owned through their projects. Admin users can access all projects and tasks.
 - Project and task endpoints require an authenticated JWT.
 - Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
-- Public registration does not accept a role and always creates a `USER`; admin user creation remains available through the admin-only user API.
+- Public registration does not accept a role and always creates a `USER`; the first admin can be created with `POST /api/auth/bootstrap/admin`, and later admin user creation remains available through the admin-only user API.
 - Set a strong `JWT_SECRET` outside source control before running outside local development.
+- Set `ADMIN_BOOTSTRAP_TOKEN` outside source control before initial deployment, then rotate or remove it after the first admin exists.
 - Refresh tokens are stored as hashes and can be rotated with `POST /api/auth/refresh` or revoked with `POST /api/auth/logout`.
-- Next recommended feature: add a trusted admin bootstrap flow.
+- Next recommended feature: add Swagger examples/descriptions.
