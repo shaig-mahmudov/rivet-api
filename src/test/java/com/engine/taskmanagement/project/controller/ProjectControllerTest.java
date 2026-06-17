@@ -7,6 +7,7 @@ import com.engine.taskmanagement.project.entity.Project;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.auth.service.JwtService;
+import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
 import com.engine.taskmanagement.task.dto.request.CreateTaskRequest;
 import com.engine.taskmanagement.task.dto.response.TaskResponse;
 import com.engine.taskmanagement.task.enums.TaskStatus;
@@ -53,6 +54,9 @@ class ProjectControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -62,6 +66,7 @@ class ProjectControllerTest {
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
 
