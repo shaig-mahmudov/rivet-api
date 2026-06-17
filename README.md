@@ -58,7 +58,7 @@ Create a local `.env` file in the project root. Do not commit it. You can start 
 ```env
 SPRING_PROFILES_ACTIVE=dev
 SERVER_PORT=8080
-DB_URL=jdbc:mysql://localhost:3306/task_management
+DB_URL=jdbc:mysql://localhost:3306/rivet_api
 DB_USERNAME=your_username
 DB_PASSWORD=your_password
 JWT_SECRET=replace_with_at_least_32_bytes_of_random_secret
@@ -72,7 +72,7 @@ ADMIN_BOOTSTRAP_TOKEN=
 Create the MySQL database before running the app:
 
 ```sql
-CREATE DATABASE task_management;
+CREATE DATABASE rivet_api;
 ```
 
 ## Docker Compose
