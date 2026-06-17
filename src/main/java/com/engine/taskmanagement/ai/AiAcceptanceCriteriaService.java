@@ -14,7 +14,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,6 +35,7 @@ public class AiAcceptanceCriteriaService {
     private final TaskRepository taskRepository;
     private final AcceptanceCriteriaRepository acceptanceCriteriaRepository;
     private final CurrentUserService currentUserService;
+    private final TransactionTemplate readOnlyTransaction;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AiAcceptanceCriteriaService(
@@ -41,26 +43,26 @@ public class AiAcceptanceCriteriaService {
             AiPromptBuilder aiPromptBuilder,
             TaskRepository taskRepository,
             AcceptanceCriteriaRepository acceptanceCriteriaRepository,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            PlatformTransactionManager transactionManager
     ) {
         this.aiProvider = aiProvider;
         this.aiPromptBuilder = aiPromptBuilder;
         this.taskRepository = taskRepository;
         this.acceptanceCriteriaRepository = acceptanceCriteriaRepository;
         this.currentUserService = currentUserService;
+        this.readOnlyTransaction = new TransactionTemplate(transactionManager);
+        this.readOnlyTransaction.setReadOnly(true);
     }
 
-    @Transactional(readOnly = true)
     public AiAcceptanceCriteriaDraftResponse generateAcceptanceCriteriaDraft(Long taskId) {
-        Task task = taskRepository.findByIdAndDeletedAtIsNull(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
-        requireTaskAccess(task, currentUserService.getCurrentUser());
-        validateTaskContext(task);
+        PromptData promptData = readOnlyTransaction.execute(status -> loadPromptData(taskId));
+        if (promptData == null) {
+            throw new AiInvalidResponseException("AI prompt could not be built");
+        }
 
-        List<AcceptanceCriteria> existingCriteria = acceptanceCriteriaRepository.findByTaskIdOrderByCreatedAtAscIdAsc(taskId);
-        String prompt = aiPromptBuilder.buildAcceptanceCriteriaPrompt(task, existingCriteria);
-        AiResponse aiResponse = aiProvider.generate(new AiRequest(prompt, TIMEOUT_SECONDS));
-        List<String> suggestions = validateAndNormalizeSuggestions(aiResponse, existingCriteria);
+        AiResponse aiResponse = aiProvider.generate(new AiRequest(promptData.prompt(), TIMEOUT_SECONDS));
+        List<String> suggestions = validateAndNormalizeSuggestions(aiResponse, promptData.existingCriteriaTexts());
 
         AiAcceptanceCriteriaDraftResponse response = new AiAcceptanceCriteriaDraftResponse();
         response.setTaskId(taskId);
@@ -68,9 +70,23 @@ public class AiAcceptanceCriteriaService {
         return response;
     }
 
+    private PromptData loadPromptData(Long taskId) {
+        Task task = taskRepository.findByIdAndDeletedAtIsNull(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        requireTaskAccess(task, currentUserService.getCurrentUser());
+        validateTaskContext(task);
+
+        List<AcceptanceCriteria> existingCriteria = acceptanceCriteriaRepository.findByTaskIdOrderByCreatedAtAscIdAsc(taskId);
+        String prompt = aiPromptBuilder.buildAcceptanceCriteriaPrompt(task, existingCriteria);
+        List<String> existingCriteriaTexts = existingCriteria.stream()
+                .map(AcceptanceCriteria::getText)
+                .toList();
+        return new PromptData(prompt, existingCriteriaTexts);
+    }
+
     private List<String> validateAndNormalizeSuggestions(
             AiResponse aiResponse,
-            List<AcceptanceCriteria> existingCriteria
+            List<String> existingCriteriaTexts
     ) {
         if (aiResponse == null || isBlank(aiResponse.getContent())) {
             throw new AiInvalidResponseException("AI response content is required");
@@ -89,8 +105,7 @@ public class AiAcceptanceCriteriaService {
         }
 
         Set<String> existingNormalized = new LinkedHashSet<>();
-        existingCriteria.stream()
-                .map(AcceptanceCriteria::getText)
+        existingCriteriaTexts.stream()
                 .map(this::normalizeForComparison)
                 .forEach(existingNormalized::add);
 
@@ -155,5 +170,8 @@ public class AiAcceptanceCriteriaService {
 
     private boolean isProjectOwner(Project project, User currentUser) {
         return project != null && project.getOwner() != null && project.getOwner().getId().equals(currentUser.getId());
+    }
+
+    private record PromptData(String prompt, List<String> existingCriteriaTexts) {
     }
 }

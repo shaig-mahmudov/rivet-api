@@ -5,7 +5,9 @@ import com.engine.taskmanagement.auth.dto.request.LoginRequest;
 import com.engine.taskmanagement.auth.dto.request.RefreshTokenRequest;
 import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.token.entity.RefreshToken;
 import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
+import com.engine.taskmanagement.auth.token.service.RefreshTokenService;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,6 +21,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -40,6 +44,9 @@ class AuthControllerTest {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -211,6 +218,33 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(refreshTokenRequest("invalid-refresh-token"))))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void cleanupRemovesExpiredRefreshTokens() throws Exception {
+        registerUser("expired-cleanup@example.com", "password123");
+        RefreshToken refreshToken = refreshTokenRepository.findAll().getFirst();
+        refreshToken.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        refreshTokenRepository.save(refreshToken);
+
+        long deletedCount = refreshTokenService.cleanupExpiredAndRevokedTokens();
+
+        assertThat(deletedCount).isEqualTo(1);
+        assertThat(refreshTokenRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    void cleanupRemovesOldRevokedRefreshTokens() throws Exception {
+        registerUser("revoked-cleanup@example.com", "password123");
+        RefreshToken refreshToken = refreshTokenRepository.findAll().getFirst();
+        refreshToken.setRevokedAt(LocalDateTime.now().minusDays(2));
+        refreshToken.setExpiresAt(LocalDateTime.now().plusDays(1));
+        refreshTokenRepository.save(refreshToken);
+
+        long deletedCount = refreshTokenService.cleanupExpiredAndRevokedTokens();
+
+        assertThat(deletedCount).isEqualTo(1);
+        assertThat(refreshTokenRepository.findAll()).isEmpty();
     }
 
     @Test

@@ -17,6 +17,9 @@ import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -131,6 +134,21 @@ public class TaskDependencyServiceImpl implements TaskDependencyService {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TaskResponse> listBlockedTasks(Pageable pageable) {
+        User currentUser = currentUserService.getCurrentUser();
+        if (!currentUserService.isAdmin(currentUser)) {
+            List<TaskResponse> visibleBlockedTasks = listBlockedTasks();
+            int start = Math.min((int) pageable.getOffset(), visibleBlockedTasks.size());
+            int end = Math.min(start + pageable.getPageSize(), visibleBlockedTasks.size());
+            return new PageImpl<>(visibleBlockedTasks.subList(start, end), pageable, visibleBlockedTasks.size());
+        }
+
+        return taskDependencyRepository.findBlockedTasksByDependsOnTaskStatusNot(TaskStatus.DONE, pageable)
+                .map(taskMapper::toResponse);
+    }
+
     private void validateDependency(Task task, Task dependsOnTask) {
         if (task.getId().equals(dependsOnTask.getId())) {
             throw new BadRequestException("A task cannot depend on itself");
@@ -141,21 +159,31 @@ public class TaskDependencyServiceImpl implements TaskDependencyService {
         if (taskDependencyRepository.existsByTaskIdAndDependsOnTaskId(task.getId(), dependsOnTask.getId())) {
             throw new DuplicateResourceException("Task dependency already exists");
         }
-        if (hasDependencyPath(dependsOnTask.getId(), task.getId(), new HashSet<>())) {
+        if (hasDependencyPath(dependsOnTask.getId(), task.getId())) {
             throw new BadRequestException("Circular task dependency is not allowed");
         }
     }
 
-    private boolean hasDependencyPath(Long fromTaskId, Long targetTaskId, Set<Long> visitedTaskIds) {
-        if (fromTaskId.equals(targetTaskId)) {
-            return true;
+    private boolean hasDependencyPath(Long fromTaskId, Long targetTaskId) {
+        Set<Long> visitedTaskIds = new HashSet<>();
+        Set<Long> frontier = new HashSet<>();
+        frontier.add(fromTaskId);
+
+        while (!frontier.isEmpty()) {
+            if (frontier.contains(targetTaskId)) {
+                return true;
+            }
+            visitedTaskIds.addAll(frontier);
+
+            Set<Long> nextFrontier = new HashSet<>();
+            taskDependencyRepository.findByTaskIdIn(frontier).stream()
+                    .map(dependency -> dependency.getDependsOnTask().getId())
+                    .filter(nextTaskId -> !visitedTaskIds.contains(nextTaskId))
+                    .forEach(nextFrontier::add);
+            frontier = nextFrontier;
         }
-        if (!visitedTaskIds.add(fromTaskId)) {
-            return false;
-        }
-        return taskDependencyRepository.findByTaskId(fromTaskId).stream()
-                .map(dependency -> dependency.getDependsOnTask().getId())
-                .anyMatch(nextTaskId -> hasDependencyPath(nextTaskId, targetTaskId, visitedTaskIds));
+
+        return false;
     }
 
     private Task findTask(Long taskId) {
