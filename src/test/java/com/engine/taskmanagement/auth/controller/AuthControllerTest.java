@@ -1,8 +1,10 @@
 package com.engine.taskmanagement.auth.controller;
 
+import com.engine.taskmanagement.auth.dto.request.AdminBootstrapRequest;
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
 import com.engine.taskmanagement.auth.dto.request.RefreshTokenRequest;
 import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
+import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.repository.UserRepository;
@@ -23,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.security.admin-bootstrap.token=test-bootstrap-token")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AuthControllerTest {
@@ -42,10 +44,77 @@ class AuthControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private static final String BOOTSTRAP_TOKEN = "test-bootstrap-token";
+
     @BeforeEach
     void setUp() {
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @Test
+    void bootstrapAdminCreatesFirstAdmin() throws Exception {
+        AdminBootstrapRequest request = adminBootstrapRequest("bootstrap-admin@example.com", "password123", BOOTSTRAP_TOKEN);
+
+        mockMvc.perform(post("/api/auth/bootstrap/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.message").value("Admin bootstrap successful"))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.user.email").value("bootstrap-admin@example.com"))
+                .andExpect(jsonPath("$.user.role").value("ADMIN"));
+
+        assertThat(userRepository.findByEmail("bootstrap-admin@example.com").orElseThrow().getRole())
+                .isEqualTo(Role.ADMIN);
+        assertThat(refreshTokenRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    void bootstrapAdminRejectsInvalidToken() throws Exception {
+        AdminBootstrapRequest request = adminBootstrapRequest("invalid-token@example.com", "password123", "wrong-token");
+
+        mockMvc.perform(post("/api/auth/bootstrap/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        assertThat(userRepository.findByEmail("invalid-token@example.com")).isEmpty();
+    }
+
+    @Test
+    void bootstrapAdminRejectsWhenAdminAlreadyExists() throws Exception {
+        mockMvc.perform(post("/api/auth/bootstrap/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(adminBootstrapRequest(
+                                "first-admin@example.com",
+                                "password123",
+                                BOOTSTRAP_TOKEN
+                        ))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/auth/bootstrap/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(adminBootstrapRequest(
+                                "second-admin@example.com",
+                                "password123",
+                                BOOTSTRAP_TOKEN
+                        ))))
+                .andExpect(status().isBadRequest());
+
+        assertThat(userRepository.findByEmail("second-admin@example.com")).isEmpty();
+    }
+
+    @Test
+    void bootstrapAdminRejectsPasswordMismatch() throws Exception {
+        AdminBootstrapRequest request = adminBootstrapRequest("mismatch-admin@example.com", "password123", BOOTSTRAP_TOKEN);
+        request.setConfirmPassword("different");
+
+        mockMvc.perform(post("/api/auth/bootstrap/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -161,6 +230,16 @@ class AuthControllerTest {
         request.setEmail(email);
         request.setPassword(password);
         request.setConfirmPassword(password);
+        return request;
+    }
+
+    private AdminBootstrapRequest adminBootstrapRequest(String email, String password, String bootstrapToken) {
+        AdminBootstrapRequest request = new AdminBootstrapRequest();
+        request.setUsername(email.substring(0, email.indexOf('@')));
+        request.setEmail(email);
+        request.setPassword(password);
+        request.setConfirmPassword(password);
+        request.setBootstrapToken(bootstrapToken);
         return request;
     }
 
