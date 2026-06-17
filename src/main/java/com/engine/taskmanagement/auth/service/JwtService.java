@@ -3,6 +3,7 @@ package com.engine.taskmanagement.auth.service;
 import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.common.exception.UnauthorizedException;
 import com.engine.taskmanagement.user.entity.User;
+import com.engine.taskmanagement.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,12 +31,14 @@ public class JwtService {
     private final String secret;
     private final long expirationSeconds;
     private final String issuer;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public JwtService(
             @Value("${app.security.jwt.secret}") String secret,
             @Value("${app.security.jwt.expiration-seconds:3600}") long expirationSeconds,
-            @Value("${app.security.jwt.issuer:TaskManagement}") String issuer
+            @Value("${app.security.jwt.issuer:TaskManagement}") String issuer,
+            UserRepository userRepository
     ) {
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalStateException("JWT secret must be at least 32 bytes");
@@ -43,6 +46,7 @@ public class JwtService {
         this.secret = secret;
         this.expirationSeconds = expirationSeconds;
         this.issuer = issuer;
+        this.userRepository = userRepository;
     }
 
     public String generateToken(User user) {
@@ -69,12 +73,15 @@ public class JwtService {
     public Authentication toAuthentication(String token) {
         Map<String, Object> claims = parseAndValidate(token);
         String email = claimAsString(claims, "sub");
-        String role = claimAsString(claims, "role");
+        User user = userRepository.findByEmail(email)
+                .filter(existingUser -> existingUser.getDeletedAt() == null)
+                .orElseThrow(() -> new UnauthorizedException("Authenticated user not found"));
+        Role role = user.getRole() == null ? Role.USER : user.getRole();
 
         return new UsernamePasswordAuthenticationToken(
                 email,
                 null,
-                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role))
+                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()))
         );
     }
 
