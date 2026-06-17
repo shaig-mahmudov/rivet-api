@@ -40,6 +40,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - User create, list, update, soft delete, and restore
 - Auth register/login with BCrypt password hashing
 - Stateless JWT Bearer authentication
+- Refresh token issuance, rotation, and logout revocation
 - Project and task endpoints require authenticated JWT access
 - Admin-only hard delete endpoints
 - Field-level validation error details
@@ -61,6 +62,7 @@ DB_USERNAME=your_username
 DB_PASSWORD=your_password
 JWT_SECRET=replace_with_at_least_32_bytes_of_random_secret
 JWT_EXPIRATION_SECONDS=3600
+REFRESH_TOKEN_EXPIRATION_SECONDS=2592000
 ```
 
 Create the MySQL database before running the app:
@@ -128,6 +130,8 @@ Tests use the `test` profile with H2. The regular service/controller tests use H
 ```text
 POST /api/auth/register
 POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
 ```
 
 Register:
@@ -143,11 +147,21 @@ Register:
 
 Register always creates a `USER`. Admin users should be created through a trusted admin flow or database seed.
 
-Login/register responses include an `accessToken`. Project and task endpoints require:
+Login/register responses include an `accessToken` and `refreshToken`. Project and task endpoints require:
 
 ```text
 Authorization: Bearer <accessToken>
 ```
+
+Refresh access tokens by rotating the current refresh token:
+
+```json
+{
+  "refreshToken": "current-refresh-token"
+}
+```
+
+`POST /api/auth/refresh` returns a new access token and a new refresh token. The previous refresh token is revoked during rotation and cannot be reused. `POST /api/auth/logout` accepts the same body and revokes the current refresh token.
 
 Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
 
@@ -466,4 +480,5 @@ AI provider credentials must come from environment configuration and must not be
 - Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
 - Public registration does not accept a role and always creates a `USER`; admin user creation remains available through the admin-only user API.
 - Set a strong `JWT_SECRET` outside source control before running outside local development.
-- Next recommended feature: add refresh tokens and a trusted admin bootstrap flow.
+- Refresh tokens are stored as hashes and can be rotated with `POST /api/auth/refresh` or revoked with `POST /api/auth/logout`.
+- Next recommended feature: add a trusted admin bootstrap flow.
