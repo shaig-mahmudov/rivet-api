@@ -8,10 +8,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
-public class TaskManagementApplication {
+public class RivetApiApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(TaskManagementApplication.class, args);
+        SpringApplication.run(RivetApiApplication.class, args);
     }
 
 }

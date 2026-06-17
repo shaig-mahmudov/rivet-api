@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.engine</groupId>
-    <artifactId>TaskManagement</artifactId>
+    <artifactId>rivet-api</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>TaskManagement</name>
-    <description>TaskManagement</description>
+    <name>Rivet API</name>
+    <description>Rivet engineering workflow API</description>
     <url/>
     <licenses>
         <license/>
