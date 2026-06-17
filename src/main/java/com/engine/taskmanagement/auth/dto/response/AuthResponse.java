@@ -9,7 +9,9 @@ import lombok.Getter;
 public class AuthResponse {
     private String message;
     private String accessToken;
+    private String refreshToken;
     private String tokenType;
     private long expiresIn;
+    private long refreshExpiresIn;
     private UserResponse user;
 }

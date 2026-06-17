@@ -1,9 +1,13 @@
 package com.engine.taskmanagement.auth.service;
 
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
+import com.engine.taskmanagement.auth.dto.request.RefreshTokenRequest;
 import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.auth.dto.response.AuthResponse;
 import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.token.dto.RefreshTokenIssue;
+import com.engine.taskmanagement.auth.token.dto.RefreshTokenRotation;
+import com.engine.taskmanagement.auth.token.service.RefreshTokenService;
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.DuplicateResourceException;
 import com.engine.taskmanagement.user.dto.response.UserResponse;
@@ -23,19 +27,22 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthServiceImpl(
             UserRepository userRepository,
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
-            JwtService jwtService
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService
     ) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -53,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
         user.setRole(Role.USER);
         User savedUser = userRepository.save(user);
 
-        return toAuthResponse("Registration successful", savedUser);
+        return toAuthResponse("Registration successful", savedUser, refreshTokenService.issueFor(savedUser));
     }
 
     @Override
@@ -64,16 +71,29 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
-        return toAuthResponse("Login successful", user);
+        return toAuthResponse("Login successful", user, refreshTokenService.issueFor(user));
     }
 
-    private AuthResponse toAuthResponse(String message, User user) {
+    @Override
+    public AuthResponse refresh(RefreshTokenRequest request) {
+        RefreshTokenRotation rotation = refreshTokenService.rotate(request.getRefreshToken());
+        return toAuthResponse("Token refreshed successfully", rotation.user(), rotation.refreshToken());
+    }
+
+    @Override
+    public void logout(RefreshTokenRequest request) {
+        refreshTokenService.revoke(request.getRefreshToken());
+    }
+
+    private AuthResponse toAuthResponse(String message, User user, RefreshTokenIssue refreshToken) {
         UserResponse response = userMapper.toResponse(user);
         return new AuthResponse(
                 message,
                 jwtService.generateToken(user),
+                refreshToken.token(),
                 "Bearer",
                 jwtService.getExpirationSeconds(),
+                refreshToken.expiresIn(),
                 response
         );
     }
