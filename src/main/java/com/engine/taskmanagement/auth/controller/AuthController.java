@@ -1,5 +1,6 @@
 package com.engine.taskmanagement.auth.controller;
 
+import com.engine.taskmanagement.auth.dto.request.AdminBootstrapRequest;
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
 import com.engine.taskmanagement.auth.dto.request.RefreshTokenRequest;
 import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
@@ -21,6 +22,11 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @PostMapping("/bootstrap/admin")
+    public ResponseEntity<AuthResponse> bootstrapAdmin(@Valid @RequestBody AdminBootstrapRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.bootstrapAdmin(request));
     }
 
     @PostMapping("/register")

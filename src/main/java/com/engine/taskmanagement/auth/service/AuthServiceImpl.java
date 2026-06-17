@@ -1,5 +1,6 @@
 package com.engine.taskmanagement.auth.service;
 
+import com.engine.taskmanagement.auth.dto.request.AdminBootstrapRequest;
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
 import com.engine.taskmanagement.auth.dto.request.RefreshTokenRequest;
 import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
@@ -10,14 +11,19 @@ import com.engine.taskmanagement.auth.token.dto.RefreshTokenRotation;
 import com.engine.taskmanagement.auth.token.service.RefreshTokenService;
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.DuplicateResourceException;
+import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.user.dto.response.UserResponse;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.mapper.UserMapper;
 import com.engine.taskmanagement.user.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -28,6 +34,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final String adminBootstrapToken;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -35,7 +42,8 @@ public class AuthServiceImpl implements AuthService {
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtService jwtService,
-            RefreshTokenService refreshTokenService
+            RefreshTokenService refreshTokenService,
+            @Value("${app.security.admin-bootstrap.token:}") String adminBootstrapToken
     ) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
@@ -43,6 +51,33 @@ public class AuthServiceImpl implements AuthService {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.adminBootstrapToken = adminBootstrapToken;
+    }
+
+    @Override
+    public AuthResponse bootstrapAdmin(AdminBootstrapRequest request) {
+        validateAdminBootstrapToken(request.getBootstrapToken());
+
+        if (userRepository.existsByRoleAndDeletedAtIsNull(Role.ADMIN)) {
+            throw new BadRequestException("Admin bootstrap has already been completed");
+        }
+
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password and confirm password must match");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new DuplicateResourceException("User already exists with email: " + request.getEmail());
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.ADMIN);
+        User savedUser = userRepository.save(user);
+
+        return toAuthResponse("Admin bootstrap successful", savedUser, refreshTokenService.issueFor(savedUser));
     }
 
     @Override
@@ -85,6 +120,16 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenService.revoke(request.getRefreshToken());
     }
 
+    private void validateAdminBootstrapToken(String submittedToken) {
+        if (adminBootstrapToken == null || adminBootstrapToken.isBlank()) {
+            throw new BadRequestException("Admin bootstrap is not configured");
+        }
+
+        if (!constantTimeEquals(adminBootstrapToken, submittedToken)) {
+            throw new ForbiddenException("Invalid admin bootstrap token");
+        }
+    }
+
     private AuthResponse toAuthResponse(String message, User user, RefreshTokenIssue refreshToken) {
         UserResponse response = userMapper.toResponse(user);
         return new AuthResponse(
@@ -95,6 +140,17 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.getExpirationSeconds(),
                 refreshToken.expiresIn(),
                 response
+        );
+    }
+
+    private boolean constantTimeEquals(String expected, String actual) {
+        if (actual == null) {
+            return false;
+        }
+
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                actual.getBytes(StandardCharsets.UTF_8)
         );
     }
 }
