@@ -37,7 +37,7 @@ public class JwtService {
     public JwtService(
             @Value("${app.security.jwt.secret}") String secret,
             @Value("${app.security.jwt.expiration-seconds:3600}") long expirationSeconds,
-            @Value("${app.security.jwt.issuer:TaskManagement}") String issuer,
+            @Value("${app.security.jwt.issuer:rivet-api}") String issuer,
             UserRepository userRepository
     ) {
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
