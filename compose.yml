@@ -11,9 +11,14 @@ services:
       DB_PASSWORD: rivet_api
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-before-production-1234567890}
       JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-3600}
+      TOKEN_BLACKLIST_STORE: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   mysql:
     image: mysql:8.4
@@ -32,6 +37,11 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
 
 volumes:
   mysql-data:

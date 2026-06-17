@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -217,6 +218,23 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(refreshTokenRequest("invalid-refresh-token"))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logoutBlacklistsAccessTokenWhenAuthorizationHeaderIsProvided() throws Exception {
+        JsonNode loginResponse = registerUser("blacklist@example.com", "password123");
+        String accessToken = loginResponse.get("accessToken").asText();
+        String refreshToken = loginResponse.get("refreshToken").asText();
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest(refreshToken))))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/tasks")
+                        .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isUnauthorized());
     }
 

@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.auth.filter;
 
 import com.engine.taskmanagement.auth.service.JwtService;
+import com.engine.taskmanagement.auth.token.service.TokenBlacklistService;
 import com.engine.taskmanagement.common.exception.UnauthorizedException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,9 +21,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -45,6 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String token = authorizationHeader.substring(BEARER_PREFIX.length());
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                throw new UnauthorizedException("Token has been revoked");
+            }
             Authentication authentication = jwtService.toAuthentication(token);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             filterChain.doFilter(request, response);

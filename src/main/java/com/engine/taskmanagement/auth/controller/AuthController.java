@@ -7,10 +7,12 @@ import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
 import com.engine.taskmanagement.auth.dto.response.AuthResponse;
 import com.engine.taskmanagement.auth.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,8 +47,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
-        authService.logout(request);
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody RefreshTokenRequest request,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader
+    ) {
+        authService.logout(request, authorizationHeader);
         return ResponseEntity.noContent().build();
     }
 }
