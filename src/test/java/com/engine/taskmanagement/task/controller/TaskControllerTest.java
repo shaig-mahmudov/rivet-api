@@ -525,6 +525,23 @@ class TaskControllerTest {
     }
 
     @Test
+    void listGlobalBlockedTasksSupportsPagination() throws Exception {
+        TaskResponse dependency = createTask("Paged incomplete dependency");
+        TaskResponse firstBlockedTask = createTask("First paged blocked task");
+        TaskResponse secondBlockedTask = createTask("Second paged blocked task");
+        createDependency(firstBlockedTask.getId(), dependency.getId(), userToken());
+        createDependency(secondBlockedTask.getId(), dependency.getId(), userToken());
+
+        mockMvc.perform(get("/api/tasks/blocked/page")
+                        .header("Authorization", "Bearer " + userToken())
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
     void addTaskDependencyRejectsSelfDependency() throws Exception {
         TaskResponse task = createTask("Self dependency task");
 
