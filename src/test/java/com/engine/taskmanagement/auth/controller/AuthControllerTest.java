@@ -1,9 +1,12 @@
 package com.engine.taskmanagement.auth.controller;
 
 import com.engine.taskmanagement.auth.dto.request.LoginRequest;
+import com.engine.taskmanagement.auth.dto.request.RefreshTokenRequest;
 import com.engine.taskmanagement.auth.dto.request.RegisterRequest;
+import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
 import com.engine.taskmanagement.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,10 +37,14 @@ class AuthControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -51,8 +58,10 @@ class AuthControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.message").value("Registration successful"))
                 .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.expiresIn").isNumber())
+                .andExpect(jsonPath("$.refreshExpiresIn").isNumber())
                 .andExpect(jsonPath("$.user.email").value("new-user@example.com"))
                 .andExpect(jsonPath("$.user.role").value("USER"));
 
@@ -76,8 +85,63 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Login successful"))
                 .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.user.email").value("login@example.com"));
+    }
+
+    @Test
+    void loginStoresOnlyHashedRefreshToken() throws Exception {
+        registerUser("hashed-refresh@example.com", "password123");
+        LoginRequest request = loginRequest("hashed-refresh@example.com", "password123");
+
+        JsonNode response = performLogin(request);
+        String refreshToken = response.get("refreshToken").asText();
+
+        assertThat(refreshTokenRepository.findAll())
+                .hasSize(2)
+                .noneMatch(token -> token.getTokenHash().equals(refreshToken));
+    }
+
+    @Test
+    void refreshRotatesRefreshToken() throws Exception {
+        JsonNode loginResponse = registerUser("rotate@example.com", "password123");
+        String oldRefreshToken = loginResponse.get("refreshToken").asText();
+
+        JsonNode refreshResponse = performRefresh(oldRefreshToken);
+        String newRefreshToken = refreshResponse.get("refreshToken").asText();
+
+        assertThat(newRefreshToken).isNotEqualTo(oldRefreshToken);
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest(oldRefreshToken))))
+                .andExpect(status().isUnauthorized());
+
+        performRefresh(newRefreshToken);
+    }
+
+    @Test
+    void logoutRevokesRefreshToken() throws Exception {
+        JsonNode loginResponse = registerUser("logout@example.com", "password123");
+        String refreshToken = loginResponse.get("refreshToken").asText();
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest(refreshToken))))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest(refreshToken))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refreshWithInvalidTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest("invalid-refresh-token"))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -107,5 +171,54 @@ class AuthControllerTest {
         request.setPassword(password);
         request.setConfirmPassword(password);
         return request;
+    }
+
+    private LoginRequest loginRequest(String email, String password) {
+        LoginRequest request = new LoginRequest();
+        request.setEmail(email);
+        request.setPassword(password);
+        return request;
+    }
+
+    private RefreshTokenRequest refreshTokenRequest(String token) {
+        RefreshTokenRequest request = new RefreshTokenRequest();
+        request.setRefreshToken(token);
+        return request;
+    }
+
+    private JsonNode registerUser(String email, String password) throws Exception {
+        String content = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest(email, password))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(content);
+    }
+
+    private JsonNode performLogin(LoginRequest request) throws Exception {
+        String content = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(content);
+    }
+
+    private JsonNode performRefresh(String refreshToken) throws Exception {
+        String content = mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest(refreshToken))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Token refreshed successfully"))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(content);
     }
 }

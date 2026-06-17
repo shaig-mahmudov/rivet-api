@@ -1,6 +1,7 @@
 package com.engine.taskmanagement.project.service.implementation;
 
 import com.engine.taskmanagement.auth.enums.Role;
+import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
 import com.engine.taskmanagement.common.exception.ForbiddenException;
 import com.engine.taskmanagement.common.exception.ResourceNotFoundException;
 import com.engine.taskmanagement.project.dto.request.CreateProjectRequest;
@@ -46,12 +47,16 @@ class ProjectServiceImplTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
     private User currentUser;
 
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
         currentUser = createUser("current@example.com");
         authenticateAs(currentUser);

@@ -2,6 +2,7 @@ package com.engine.taskmanagement.user.controller;
 
 import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.auth.service.JwtService;
+import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
 import com.engine.taskmanagement.project.repository.ProjectRepository;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.user.dto.request.CreateUserRequest;
@@ -49,10 +50,14 @@ class UserControllerTest {
     @Autowired
     private ProjectRepository projectRepository;
 
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
     @BeforeEach
     void setUp() {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
 
