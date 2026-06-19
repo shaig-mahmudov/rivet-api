@@ -24,4 +24,8 @@ public interface TaskDependencyRepository extends JpaRepository<TaskDependency, 
     List<TaskDependency> findByTaskIdAndDependsOnTaskStatusNot(Long taskId, TaskStatus status);
 
     List<TaskDependency> findByDependsOnTaskStatusNotOrderByCreatedAtAscIdAsc(TaskStatus status);
+
+    List<TaskDependency> findByTaskProjectId(Long projectId);
+
+    List<TaskDependency> findByTaskProjectIsNull();
 }
