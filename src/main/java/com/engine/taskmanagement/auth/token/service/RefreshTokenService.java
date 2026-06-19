@@ -16,6 +16,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 
 @Service
 public class RefreshTokenService {
@@ -53,7 +54,17 @@ public class RefreshTokenService {
 
     @Transactional
     public RefreshTokenRotation rotate(String rawToken) {
-        RefreshToken existingToken = findValidToken(rawToken);
+        RefreshToken existingToken = refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken))
+                .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+
+        if (existingToken.isRevoked()) {
+            List<RefreshToken> activeTokens = refreshTokenRepository.findAllByUser_IdAndRevokedAtIsNull(existingToken.getUser().getId());
+            activeTokens.forEach(t -> t.revoke(null));
+            throw new UnauthorizedException("Token breach detected. All sessions revoked.");
+        }
+
+        validateToken(existingToken);
+
         RefreshTokenIssue newRefreshToken = issueFor(existingToken.getUser());
         existingToken.revoke(newRefreshToken.tokenHash());
 
@@ -62,8 +73,10 @@ public class RefreshTokenService {
 
     @Transactional
     public void revoke(String rawToken) {
-        RefreshToken refreshToken = findValidToken(rawToken);
-        refreshToken.revoke(null);
+        RefreshToken existingToken = refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken))
+                .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+        validateToken(existingToken);
+        existingToken.revoke(null);
     }
 
     @Scheduled(fixedDelayString = "${app.security.refresh-token.cleanup-interval-ms:3600000}")
@@ -82,16 +95,11 @@ public class RefreshTokenService {
         return expiredCount + revokedCount;
     }
 
-    private RefreshToken findValidToken(String rawToken) {
+    private void validateToken(RefreshToken refreshToken) {
         LocalDateTime now = LocalDateTime.now();
-        RefreshToken refreshToken = refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken))
-                .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
-
         if (refreshToken.isRevoked() || refreshToken.isExpired(now) || refreshToken.getUser().isDeleted()) {
             throw new UnauthorizedException("Invalid refresh token");
         }
-
-        return refreshToken;
     }
 
     private String generateToken() {

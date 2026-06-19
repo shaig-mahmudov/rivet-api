@@ -33,6 +33,10 @@ public interface TaskDependencyRepository extends JpaRepository<TaskDependency, 
 
     List<TaskDependency> findByDependsOnTaskStatusNotOrderByCreatedAtAscIdAsc(TaskStatus status);
 
+    List<TaskDependency> findByTaskProjectId(Long projectId);
+
+    List<TaskDependency> findByTaskProjectIsNull();
+
     @Query("select distinct dependency.task from TaskDependency dependency " +
             "where dependency.dependsOnTask.status <> :status and dependency.task.deletedAt is null")
     Page<Task> findBlockedTasksByDependsOnTaskStatusNot(

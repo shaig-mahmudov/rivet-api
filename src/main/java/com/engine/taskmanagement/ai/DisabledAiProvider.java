@@ -2,7 +2,6 @@ package com.engine.taskmanagement.ai;
 
 import org.springframework.stereotype.Component;
 
-@Component
 public class DisabledAiProvider implements AiProvider {
 
     @Override

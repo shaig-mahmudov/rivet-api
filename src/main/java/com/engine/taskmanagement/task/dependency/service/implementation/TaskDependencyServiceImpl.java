@@ -159,30 +159,36 @@ public class TaskDependencyServiceImpl implements TaskDependencyService {
         if (taskDependencyRepository.existsByTaskIdAndDependsOnTaskId(task.getId(), dependsOnTask.getId())) {
             throw new DuplicateResourceException("Task dependency already exists");
         }
-        if (hasDependencyPath(dependsOnTask.getId(), task.getId())) {
+        
+        Long projId = projectId(task);
+        List<TaskDependency> allDeps = projId != null 
+            ? taskDependencyRepository.findByTaskProjectId(projId)
+            : taskDependencyRepository.findByTaskProjectIsNull();
+            
+        Map<Long, List<Long>> graph = new java.util.HashMap<>();
+        for (TaskDependency dep : allDeps) {
+            graph.computeIfAbsent(dep.getTask().getId(), k -> new java.util.ArrayList<>())
+                 .add(dep.getDependsOnTask().getId());
+        }
+
+        if (hasDependencyPathInMemory(dependsOnTask.getId(), task.getId(), new HashSet<>(), graph)) {
             throw new BadRequestException("Circular task dependency is not allowed");
         }
     }
 
-    private boolean hasDependencyPath(Long fromTaskId, Long targetTaskId) {
-        Set<Long> visitedTaskIds = new HashSet<>();
-        Set<Long> frontier = new HashSet<>();
-        frontier.add(fromTaskId);
-
-        while (!frontier.isEmpty()) {
-            if (frontier.contains(targetTaskId)) {
+    private boolean hasDependencyPathInMemory(Long fromTaskId, Long targetTaskId, Set<Long> visitedTaskIds, Map<Long, List<Long>> graph) {
+        if (fromTaskId.equals(targetTaskId)) {
+            return true;
+        }
+        if (!visitedTaskIds.add(fromTaskId)) {
+            return false;
+        }
+        List<Long> nextTasks = graph.getOrDefault(fromTaskId, java.util.Collections.emptyList());
+        for (Long nextTaskId : nextTasks) {
+            if (hasDependencyPathInMemory(nextTaskId, targetTaskId, visitedTaskIds, graph)) {
                 return true;
             }
-            visitedTaskIds.addAll(frontier);
-
-            Set<Long> nextFrontier = new HashSet<>();
-            taskDependencyRepository.findByTaskIdIn(frontier).stream()
-                    .map(dependency -> dependency.getDependsOnTask().getId())
-                    .filter(nextTaskId -> !visitedTaskIds.contains(nextTaskId))
-                    .forEach(nextFrontier::add);
-            frontier = nextFrontier;
         }
-
         return false;
     }
 

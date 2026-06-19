@@ -56,6 +56,7 @@ public class TaskServiceImpl implements TaskService {
         this.taskActivityService = taskActivityService;
     }
 
+    @Transactional
     @Override
     public TaskResponse createTask(CreateTaskRequest request) {
         User currentUser = currentUserService.getCurrentUser();
@@ -83,6 +84,7 @@ public class TaskServiceImpl implements TaskService {
         return taskMapper.toResponse(savedTask);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public Page<TaskResponse> getTasks(FilterTaskRequest request, Pageable pageable) {
         User currentUser = currentUserService.getCurrentUser();
@@ -96,6 +98,7 @@ public class TaskServiceImpl implements TaskService {
         return tasks.map(taskMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public Page<TaskResponse> getDeletedTasks(Pageable pageable) {
         User currentUser = currentUserService.getCurrentUser();
@@ -108,6 +111,7 @@ public class TaskServiceImpl implements TaskService {
 
     }
 
+    @Transactional(readOnly = true)
     @Override
     public TaskResponse getTaskById(Long id) {
         Task task = taskRepository.findByIdAndDeletedAtIsNull(id)
@@ -251,6 +255,7 @@ public class TaskServiceImpl implements TaskService {
         return taskMapper.toResponse(updatedTask);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public Page<TaskResponse> getTasksByProjectId(Long projectId, FilterTaskRequest request, Pageable pageable) {
         Project project = projectRepository.findByIdAndDeletedAtIsNull(projectId)

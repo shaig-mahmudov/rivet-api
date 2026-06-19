@@ -30,6 +30,7 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional
     @Override
     public UserResponse createUser(CreateUserRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -47,6 +48,7 @@ public class UserServiceImpl implements UserService {
         return userMapper.toResponse(savedUser);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public UserResponse getUserById(Long id) {
         User user = userRepository.findByIdAndDeletedAtIsNull(id)
@@ -99,6 +101,7 @@ public class UserServiceImpl implements UserService {
         return userMapper.toResponse(user);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public List<UserResponse> getAllUsers() {
         return userRepository.findAllByDeletedAtIsNull()
@@ -107,6 +110,7 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     @Override
     public List<UserResponse> getAllDeletedUsers() {
         return userRepository.findAllByDeletedAtIsNotNull()
