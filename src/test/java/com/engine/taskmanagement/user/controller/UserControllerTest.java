@@ -20,6 +20,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -88,8 +90,8 @@ class UserControllerTest {
         mockMvc.perform(get("/api/users")
                         .header("Authorization", "Bearer " + adminToken()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(activeUser.getId()))
-                .andExpect(jsonPath("$[0].email").value("active@example.com"));
+                .andExpect(jsonPath("$[*].id").value(hasItem(Math.toIntExact(activeUser.getId()))))
+                .andExpect(jsonPath("$[*].id").value(not(hasItem(Math.toIntExact(deletedUser.getId())))));
 
         mockMvc.perform(get("/api/users/deleted")
                         .header("Authorization", "Bearer " + adminToken()))
@@ -130,6 +132,30 @@ class UserControllerTest {
         assertThat(userRepository.findByIdAndDeletedAtIsNull(user.getId())).isPresent();
     }
 
+    @Test
+    void deletedAdminTokenCannotAccessAdminEndpoints() throws Exception {
+        User admin = adminUser();
+        String token = jwtService.generateToken(admin);
+        admin.markAsDeleted();
+        userRepository.save(admin);
+
+        mockMvc.perform(get("/api/users")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void demotedAdminTokenUsesCurrentRole() throws Exception {
+        User admin = adminUser();
+        String token = jwtService.generateToken(admin);
+        admin.setRole(Role.USER);
+        userRepository.save(admin);
+
+        mockMvc.perform(get("/api/users")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
     private UserResponse createUser(String email) throws Exception {
         String content = mockMvc.perform(post("/api/users")
                         .header("Authorization", "Bearer " + adminToken())
@@ -153,11 +179,16 @@ class UserControllerTest {
     }
 
     private String adminToken() {
-        User admin = new User();
-        admin.setId(999L);
-        admin.setEmail("admin@example.com");
-        admin.setUsername("admin");
-        admin.setRole(Role.ADMIN);
-        return jwtService.generateToken(admin);
+        return jwtService.generateToken(adminUser());
+    }
+
+    private User adminUser() {
+        return userRepository.findByEmail("admin@example.com").orElseGet(() -> {
+            User admin = new User();
+            admin.setEmail("admin@example.com");
+            admin.setUsername("admin");
+            admin.setRole(Role.ADMIN);
+            return userRepository.save(admin);
+        });
     }
 }

@@ -58,19 +58,21 @@ Create a local `.env` file in the project root. Do not commit it. You can start 
 ```env
 SPRING_PROFILES_ACTIVE=dev
 SERVER_PORT=8080
-DB_URL=jdbc:mysql://localhost:3306/task_management
+DB_URL=jdbc:mysql://localhost:3306/rivet_api
 DB_USERNAME=your_username
 DB_PASSWORD=your_password
 JWT_SECRET=replace_with_at_least_32_bytes_of_random_secret
 JWT_EXPIRATION_SECONDS=3600
 REFRESH_TOKEN_EXPIRATION_SECONDS=2592000
-ADMIN_BOOTSTRAP_TOKEN=replace_with_one_time_admin_bootstrap_token
+REFRESH_TOKEN_REVOKED_RETENTION_SECONDS=86400
+REFRESH_TOKEN_CLEANUP_INTERVAL_MS=3600000
+ADMIN_BOOTSTRAP_TOKEN=
 ```
 
 Create the MySQL database before running the app:
 
 ```sql
-CREATE DATABASE task_management;
+CREATE DATABASE rivet_api;
 ```
 
 ## Docker Compose
@@ -234,6 +236,7 @@ POST   /api/tasks
 GET    /api/tasks
 GET    /api/tasks/deleted
 GET    /api/tasks/blocked
+GET    /api/tasks/blocked/page
 GET    /api/tasks/{id}
 PUT    /api/tasks/{id}
 PATCH  /api/tasks/{id}
@@ -407,7 +410,7 @@ GET /api/tasks/10/blocked-tasks
 GET /api/tasks/blocked
 ```
 
-`GET /api/tasks/blocked` lists visible tasks that currently have at least one incomplete dependency. Self-dependencies, duplicate dependencies, dependencies across different projects, and circular dependencies are rejected.
+`GET /api/tasks/blocked` lists visible tasks that currently have at least one incomplete dependency. `GET /api/tasks/blocked/page?page=0&size=20` returns the same concept in a paginated response for larger task graphs. Self-dependencies, duplicate dependencies, dependencies across different projects, and circular dependencies are rejected.
 
 Task comments:
 
@@ -499,4 +502,5 @@ AI provider credentials must come from environment configuration and must not be
 - Set a strong `JWT_SECRET` outside source control before running outside local development.
 - Set `ADMIN_BOOTSTRAP_TOKEN` outside source control before initial deployment, then rotate or remove it after the first admin exists.
 - Refresh tokens are stored as hashes and can be rotated with `POST /api/auth/refresh` or revoked with `POST /api/auth/logout`.
+- Expired refresh tokens and old revoked refresh tokens are cleaned up on a schedule controlled by `REFRESH_TOKEN_CLEANUP_INTERVAL_MS` and `REFRESH_TOKEN_REVOKED_RETENTION_SECONDS`.
 - Next recommended feature: add Swagger examples/descriptions.

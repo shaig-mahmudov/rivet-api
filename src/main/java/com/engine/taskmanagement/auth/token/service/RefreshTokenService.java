@@ -7,6 +7,7 @@ import com.engine.taskmanagement.auth.token.repository.RefreshTokenRepository;
 import com.engine.taskmanagement.common.exception.UnauthorizedException;
 import com.engine.taskmanagement.user.entity.User;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +26,16 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final SecureRandom secureRandom = new SecureRandom();
     private final long expirationSeconds;
+    private final long revokedTokenRetentionSeconds;
 
     public RefreshTokenService(
             RefreshTokenRepository refreshTokenRepository,
-            @Value("${app.security.refresh-token.expiration-seconds:2592000}") long expirationSeconds
+            @Value("${app.security.refresh-token.expiration-seconds:2592000}") long expirationSeconds,
+            @Value("${app.security.refresh-token.revoked-retention-seconds:86400}") long revokedTokenRetentionSeconds
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.expirationSeconds = expirationSeconds;
+        this.revokedTokenRetentionSeconds = revokedTokenRetentionSeconds;
     }
 
     @Transactional
@@ -50,7 +54,7 @@ public class RefreshTokenService {
 
     @Transactional
     public RefreshTokenRotation rotate(String rawToken) {
-        RefreshToken existingToken = refreshTokenRepository.findByTokenHash(hash(rawToken))
+        RefreshToken existingToken = refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken))
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
         if (existingToken.isRevoked()) {
@@ -69,10 +73,26 @@ public class RefreshTokenService {
 
     @Transactional
     public void revoke(String rawToken) {
-        RefreshToken existingToken = refreshTokenRepository.findByTokenHash(hash(rawToken))
+        RefreshToken existingToken = refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken))
                 .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
         validateToken(existingToken);
         existingToken.revoke(null);
+    }
+
+    @Scheduled(fixedDelayString = "${app.security.refresh-token.cleanup-interval-ms:3600000}")
+    @Transactional
+    public void scheduledCleanup() {
+        cleanupExpiredAndRevokedTokens();
+    }
+
+    @Transactional
+    public long cleanupExpiredAndRevokedTokens() {
+        LocalDateTime now = LocalDateTime.now();
+        long expiredCount = refreshTokenRepository.deleteByExpiresAtBefore(now);
+        long revokedCount = refreshTokenRepository.deleteByRevokedAtIsNotNullAndRevokedAtBefore(
+                now.minusSeconds(revokedTokenRetentionSeconds)
+        );
+        return expiredCount + revokedCount;
     }
 
     private void validateToken(RefreshToken refreshToken) {

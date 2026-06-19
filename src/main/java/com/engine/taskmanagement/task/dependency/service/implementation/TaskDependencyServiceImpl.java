@@ -17,6 +17,9 @@ import com.engine.taskmanagement.task.enums.TaskStatus;
 import com.engine.taskmanagement.task.mapper.TaskMapper;
 import com.engine.taskmanagement.task.repository.TaskRepository;
 import com.engine.taskmanagement.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -129,6 +132,21 @@ public class TaskDependencyServiceImpl implements TaskDependencyService {
         return blockedTasks.values().stream()
                 .map(taskMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TaskResponse> listBlockedTasks(Pageable pageable) {
+        User currentUser = currentUserService.getCurrentUser();
+        if (!currentUserService.isAdmin(currentUser)) {
+            List<TaskResponse> visibleBlockedTasks = listBlockedTasks();
+            int start = Math.min((int) pageable.getOffset(), visibleBlockedTasks.size());
+            int end = Math.min(start + pageable.getPageSize(), visibleBlockedTasks.size());
+            return new PageImpl<>(visibleBlockedTasks.subList(start, end), pageable, visibleBlockedTasks.size());
+        }
+
+        return taskDependencyRepository.findBlockedTasksByDependsOnTaskStatusNot(TaskStatus.DONE, pageable)
+                .map(taskMapper::toResponse);
     }
 
     private void validateDependency(Task task, Task dependsOnTask) {
