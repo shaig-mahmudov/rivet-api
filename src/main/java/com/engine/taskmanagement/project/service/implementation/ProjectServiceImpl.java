@@ -35,6 +35,7 @@ public class ProjectServiceImpl implements ProjectService {
         this.currentUserService = currentUserService;
     }
 
+    @Transactional
     @Override
     public ProjectResponse createProject(CreateProjectRequest request) {
         User currentUser = currentUserService.getCurrentUser();
@@ -44,6 +45,7 @@ public class ProjectServiceImpl implements ProjectService {
         return projectMapper.toResponse(savedProject);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public Page<ProjectResponse> getProjects(FilterProjectRequest request, Pageable pageable) {
         User currentUser = currentUserService.getCurrentUser();
@@ -55,6 +57,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(projectMapper::toResponse);
     }
 
+    @Transactional
     @Override
     public ProjectResponse updateProject(Long id, UpdateProjectRequest request) {
         Project currentProject = projectRepository.findByIdAndDeletedAtIsNull(id)
