@@ -9,6 +9,7 @@ Rivet is a Spring Boot backend API for managing engineering tasks, incidents, de
 - Spring Web MVC
 - Spring Data JPA
 - Spring Security
+- Redis for access-token blacklist storage
 - Bean Validation
 - Flyway
 - MySQL for development
@@ -67,6 +68,10 @@ REFRESH_TOKEN_EXPIRATION_SECONDS=2592000
 REFRESH_TOKEN_REVOKED_RETENTION_SECONDS=86400
 REFRESH_TOKEN_CLEANUP_INTERVAL_MS=3600000
 ADMIN_BOOTSTRAP_TOKEN=
+TOKEN_BLACKLIST_STORE=memory
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
 ```
 
 Create the MySQL database before running the app:
@@ -82,6 +87,8 @@ Run the API with MySQL:
 ```bash
 docker compose up --build
 ```
+
+Docker Compose also starts Redis and configures the API to use Redis-backed access-token blacklisting.
 
 API:
 
@@ -180,7 +187,7 @@ Refresh access tokens by rotating the current refresh token:
 }
 ```
 
-`POST /api/auth/refresh` returns a new access token and a new refresh token. The previous refresh token is revoked during rotation and cannot be reused. `POST /api/auth/logout` accepts the same body and revokes the current refresh token.
+`POST /api/auth/refresh` returns a new access token and a new refresh token. The previous refresh token is revoked during rotation and cannot be reused. `POST /api/auth/logout` accepts the same body and revokes the current refresh token. When the request includes `Authorization: Bearer <accessToken>`, that access token is blacklisted until its normal expiry. Set `TOKEN_BLACKLIST_STORE=redis` to use Redis; the default `memory` store is intended for local development and tests.
 
 Hard delete and user-management endpoints require an authenticated `ADMIN` JWT.
 

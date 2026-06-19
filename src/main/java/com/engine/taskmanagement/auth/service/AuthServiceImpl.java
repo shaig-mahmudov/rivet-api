@@ -9,9 +9,11 @@ import com.engine.taskmanagement.auth.enums.Role;
 import com.engine.taskmanagement.auth.token.dto.RefreshTokenIssue;
 import com.engine.taskmanagement.auth.token.dto.RefreshTokenRotation;
 import com.engine.taskmanagement.auth.token.service.RefreshTokenService;
+import com.engine.taskmanagement.auth.token.service.TokenBlacklistService;
 import com.engine.taskmanagement.common.exception.BadRequestException;
 import com.engine.taskmanagement.common.exception.DuplicateResourceException;
 import com.engine.taskmanagement.common.exception.ForbiddenException;
+import com.engine.taskmanagement.common.exception.UnauthorizedException;
 import com.engine.taskmanagement.user.dto.response.UserResponse;
 import com.engine.taskmanagement.user.entity.User;
 import com.engine.taskmanagement.user.mapper.UserMapper;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final String adminBootstrapToken;
 
     public AuthServiceImpl(
@@ -48,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
+            TokenBlacklistService tokenBlacklistService,
             @Value("${app.security.admin-bootstrap.token:}") String adminBootstrapToken
     ) {
         this.userRepository = userRepository;
@@ -56,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.adminBootstrapToken = adminBootstrapToken;
     }
 
@@ -122,8 +128,31 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(RefreshTokenRequest request) {
+    public void logout(RefreshTokenRequest request, String authorizationHeader) {
+        blacklistAccessTokenIfPresent(authorizationHeader);
         refreshTokenService.revoke(request.getRefreshToken());
+    }
+
+    private void blacklistAccessTokenIfPresent(String authorizationHeader) {
+        String accessToken = extractBearerToken(authorizationHeader);
+        if (accessToken == null) {
+            return;
+        }
+        try {
+            Duration ttl = jwtService.getRemainingValidity(accessToken);
+            tokenBlacklistService.blacklist(accessToken, ttl);
+        } catch (UnauthorizedException ignored) {
+            // Expired or otherwise invalid access tokens do not need blacklist entries.
+        }
+    }
+
+    private String extractBearerToken(String authorizationHeader) {
+        String bearerPrefix = "Bearer ";
+        if (authorizationHeader == null || !authorizationHeader.startsWith(bearerPrefix)) {
+            return null;
+        }
+        String token = authorizationHeader.substring(bearerPrefix.length());
+        return token.isBlank() ? null : token;
     }
 
     private void validateAdminBootstrapToken(String submittedToken) {

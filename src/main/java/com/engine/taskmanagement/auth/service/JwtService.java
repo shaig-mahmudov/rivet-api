@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -37,7 +38,7 @@ public class JwtService {
     public JwtService(
             @Value("${app.security.jwt.secret}") String secret,
             @Value("${app.security.jwt.expiration-seconds:3600}") long expirationSeconds,
-            @Value("${app.security.jwt.issuer:TaskManagement}") String issuer,
+            @Value("${app.security.jwt.issuer:rivet-api}") String issuer,
             UserRepository userRepository
     ) {
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
@@ -87,6 +88,13 @@ public class JwtService {
 
     public long getExpirationSeconds() {
         return expirationSeconds;
+    }
+
+    public Duration getRemainingValidity(String token) {
+        Map<String, Object> claims = parseAndValidate(token);
+        long expiresAt = claimAsLong(claims, "exp");
+        long remainingSeconds = expiresAt - Instant.now().getEpochSecond();
+        return Duration.ofSeconds(Math.max(remainingSeconds, 0));
     }
 
     private Map<String, Object> parseAndValidate(String token) {
