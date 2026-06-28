@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 public interface ProjectService {
     ProjectResponse createProject(CreateProjectRequest request);
     Page<ProjectResponse> getProjects(FilterProjectRequest request, Pageable pageable);
+    ProjectResponse getProjectById(Long id);
     ProjectResponse updateProject(Long id, UpdateProjectRequest request);
     void deleteProject(Long id);
     void hardDeleteProject(Long id);

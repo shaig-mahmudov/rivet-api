@@ -57,6 +57,15 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(projectMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public ProjectResponse getProjectById(Long id) {
+        Project project = projectRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+        requireProjectOwnerOrAdmin(project, currentUserService.getCurrentUser());
+        return projectMapper.toResponse(project);
+    }
+
     @Transactional
     @Override
     public ProjectResponse updateProject(Long id, UpdateProjectRequest request) {
