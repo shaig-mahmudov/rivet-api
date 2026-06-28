@@ -151,7 +151,7 @@ class UserControllerTest {
         admin.setRole(Role.USER);
         userRepository.save(admin);
 
-        mockMvc.perform(get("/api/users")
+        mockMvc.perform(delete("/api/users/999")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
