@@ -25,12 +25,22 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
         if (ttl.isZero() || ttl.isNegative()) {
             return;
         }
-        redisTemplate.opsForValue().set(key(token), "1", ttl);
+        try {
+            redisTemplate.opsForValue().set(key(token), "1", ttl);
+        } catch (Exception ex) {
+            // Log warning but do not crash
+            System.err.println("Failed to blacklist token in Redis: " + ex.getMessage());
+        }
     }
 
     @Override
     public boolean isBlacklisted(String token) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(key(token)));
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(key(token)));
+        } catch (Exception ex) {
+            System.err.println("Failed to check token blacklist in Redis, defaulting to false: " + ex.getMessage());
+            return false;
+        }
     }
 
     private String key(String token) {
