@@ -494,7 +494,7 @@ AI provider credentials must come from environment configuration and must not be
 ## Notes
 
 - Keep secrets in `.env` or environment variables.
-- When deploying to production (e.g. Koyeb), configure `CORS_ALLOWED_ORIGINS` (e.g. `https://rivet.vercel.app`) to restrict cross-origin requests.
+- When deploying to production (e.g. Koyeb), configure `CORS_ALLOWED_ORIGINS` (e.g. `https://vercel.com/shaig-s-projects`) to restrict cross-origin requests.
 - Dev profile uses MySQL migrations.
 - Prod profile uses PostgreSQL migrations.
 - Flyway requires the Spring Boot 4 `spring-boot-flyway` integration dependency, which is included in `pom.xml`.
